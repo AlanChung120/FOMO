@@ -16,7 +16,6 @@ import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.DirectionsBus
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Flag
-import androidx.compose.material.icons.filled.FlagCircle
 import androidx.compose.material.icons.filled.PedalBike
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -43,27 +42,22 @@ import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.example.fomo.models.MyViewModel
 import com.google.android.gms.maps.CameraUpdateFactory
-import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberMarkerState
 import com.google.maps.android.compose.Circle
 import com.google.maps.android.compose.MarkerComposable
-import com.google.maps.android.compose.MarkerState
 import kotlinx.serialization.InternalSerializationApi
-import kotlinx.serialization.builtins.ListSerializer
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.serializer
 
 
-class MapScreen(private val myViewModel: MyViewModel) : Screen {
+class MapScreen(private val myViewModel: MyViewModel, private val friendLocation: LatLng? = null) : Screen {
   @Composable
   override fun Content() {
     Column(
       modifier = Modifier.fillMaxSize()
     ) {
-      Map(myViewModel)
+      Map(myViewModel, friendLocation)
     }
   }
 }
@@ -95,11 +89,14 @@ fun CustomMapMarker(
 
 @OptIn(InternalSerializationApi::class)
 @Composable
-fun Map(myViewModel: MyViewModel) {
+fun Map(myViewModel: MyViewModel, friendLocation: LatLng?) {
   var isMapLoaded by remember { mutableStateOf(false) }
   val cameraPositionState = rememberCameraPositionState {
     position = CameraPosition.fromLatLngZoom(myViewModel.center, 15f)
   }
+
+
+
   val markerState = rememberMarkerState(
     key = "Selected Location",
   )
@@ -116,6 +113,15 @@ fun Map(myViewModel: MyViewModel) {
     if (myViewModel.selectedLocation != null) {
       markerState.position = myViewModel.selectedLocation!!
       markerState.showInfoWindow()
+    }
+  }
+
+  LaunchedEffect(friendLocation) {
+    friendLocation?.let {
+      cameraPositionState.animate(
+        CameraUpdateFactory.newLatLngZoom(it, 15f),
+        1000 // Animation duration in milliseconds
+      )
     }
   }
 

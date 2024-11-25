@@ -73,6 +73,7 @@ import com.example.fomo.models.User
 import io.ktor.client.request.request
 import coil.compose.rememberAsyncImagePainter
 import android.widget.Toast
+import cafe.adriel.voyager.navigator.LocalNavigator
 
 
 class FriendsScreen(private val myViewModel: MyViewModel) : Screen {
@@ -214,6 +215,7 @@ fun showNotification(context: Context, message: String) {
 
 @Composable
 fun FriendsList(myViewModel: MyViewModel) {
+  val navigator = LocalNavigator.current
   val context = LocalContext.current
   var isLoaded by remember { mutableStateOf<Boolean>(false) }
   var expanded = remember { mutableStateMapOf<String, Boolean>() }
@@ -268,6 +270,9 @@ fun FriendsList(myViewModel: MyViewModel) {
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.height(75.dp)
+          .clickable {
+            navigator?.push(MapScreen(myViewModel, LatLng(friend.latitude, friend.longitude)))
+          }
       ) {
         Image(
           painter = rememberAsyncImagePainter(myViewModel.getImgUrl(friend.uid),
