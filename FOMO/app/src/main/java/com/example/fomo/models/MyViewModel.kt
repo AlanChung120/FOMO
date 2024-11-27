@@ -1,17 +1,16 @@
 package com.example.fomo.models
 
-import android.os.Build
 import android.util.Log
-import androidx.annotation.RequiresApi
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.focus.FocusRequester
-import androidx.core.app.ActivityCompat.recreate
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.SphericalUtil
 import com.example.fomo.BuildConfig
@@ -33,20 +32,14 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.serialization.kotlinx.json.json
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import com.google.maps.android.PolyUtil
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.query.Columns
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
-import kotlinx.serialization.InternalSerializationApi
-import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
@@ -54,12 +47,89 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.double
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.serializer
 import java.io.InputStream
 import android.content.ContentResolver
+import android.content.Context
+import android.graphics.Bitmap
 import android.net.Uri
+import androidx.core.graphics.drawable.toBitmap
+import coil.imageLoader
+import coil.request.ImageRequest
+import coil.request.SuccessResult
+import com.google.android.gms.maps.model.BitmapDescriptor
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
 
 class MyViewModel : ViewModel() {
+    private val _bitmapDescriptor = mutableStateOf<BitmapDescriptor?>(null)
+    var bitmapDescriptor by _bitmapDescriptor
+
+    suspend fun uriToBitmapDescriptor(context: Context, imageUri: String): BitmapDescriptor? {
+        Log.d("ImageLoading", imageUri)
+        val request = ImageRequest.Builder(context)
+            .data(imageUri)
+            .allowHardware(false)
+            .build()
+
+        val result = context.imageLoader.execute(request)
+        if (result is SuccessResult) {
+            Log.d("ImageLoading", "Image loaded successfully")
+            val originalBitmap = result.drawable.toBitmap()
+            val resizedBitmap = Bitmap.createScaledBitmap(originalBitmap, 124, 124, true) // Resize to 48x48
+            val roundedBitmap = createRoundedBitmap(resizedBitmap, cornerRadius = 32) // Add rounded corners
+
+            val borderedBitmap = addWhiteBorder(roundedBitmap, 8) // Add 8px white border
+            val roundedBitmap2 = createRoundedBitmap(borderedBitmap, cornerRadius = 32) // Add rounded corners
+
+
+            return BitmapDescriptorFactory.fromBitmap(roundedBitmap2)
+        } else {
+            Log.e("ImageLoading", "Failed to load image: $result")
+            return null
+        }
+    }
+
+
+    private fun addWhiteBorder(bitmap: Bitmap, borderSize: Int): Bitmap {
+        val width = bitmap.width + borderSize * 2
+        val height = bitmap.height + borderSize * 2
+        val bitmapWithBorder = Bitmap.createBitmap(width, height, bitmap.config)
+
+        val canvas = Canvas(bitmapWithBorder)
+        canvas.drawColor(Color.WHITE) // Draw white border
+        canvas.drawBitmap(bitmap, borderSize.toFloat(), borderSize.toFloat(), null) // Draw original bitmap
+
+        return bitmapWithBorder
+    }
+
+    private fun createRoundedBitmap(bitmap: Bitmap, cornerRadius: Int): Bitmap {
+        val output = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(output)
+
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        val rect = RectF(0f, 0f, bitmap.width.toFloat(), bitmap.height.toFloat())
+
+        // Draw rounded rectangle as the background
+        canvas.drawRoundRect(rect, cornerRadius.toFloat(), cornerRadius.toFloat(), paint)
+
+        // Apply PorterDuff mode to overlay the original bitmap
+        paint.xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_IN)
+        canvas.drawBitmap(bitmap, null, rect, paint)
+
+        return output
+    }
+
+
+
+    fun loadImage(context: Context, imageUri: String){
+        Log.d("bitMapDescriptor", "called")
+        viewModelScope.launch {
+            _bitmapDescriptor.value = uriToBitmapDescriptor(context,imageUri)
+        }
+        Log.d("bitMapDescriptor", "updated ${_bitmapDescriptor.value}")
+    }
+
+
+
 
     // constants
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())

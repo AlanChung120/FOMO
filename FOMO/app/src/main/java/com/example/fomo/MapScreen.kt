@@ -24,6 +24,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,7 +35,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.core.screen.Screen
 import com.example.fomo.const.Colors
 import com.google.android.gms.maps.model.CameraPosition
@@ -42,6 +45,7 @@ import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.example.fomo.models.MyViewModel
 import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.Polyline
@@ -90,16 +94,21 @@ fun CustomMapMarker(
 @OptIn(InternalSerializationApi::class)
 @Composable
 fun Map(myViewModel: MyViewModel, friendLocation: LatLng?) {
+  val context = LocalContext.current
   var isMapLoaded by remember { mutableStateOf(false) }
   val cameraPositionState = rememberCameraPositionState {
     position = CameraPosition.fromLatLngZoom(myViewModel.center, 15f)
   }
-
-
-
   val markerState = rememberMarkerState(
     key = "Selected Location",
   )
+
+  LaunchedEffect(key1 = true){
+    myViewModel.loadImage(context, myViewModel.getImgUrl(myViewModel.uid))
+  }
+
+  Log.d("bitMapDescriptor", "${myViewModel.bitmapDescriptor}")
+
 
   // Update camera position whenever mapViewModel.center changes
   LaunchedEffect(myViewModel.center) {
@@ -144,11 +153,24 @@ fun Map(myViewModel: MyViewModel, friendLocation: LatLng?) {
         val userPosition = LatLng(myViewModel.userLatitude, myViewModel.userLongitude)  // Create LatLng object
 
         // user avatar
-        Marker(
-          state = rememberMarkerState(key = "User Position", userPosition),
-          title = myViewModel.displayName,
-          snippet = "${myViewModel.status.emoji} ${myViewModel.status.description}",
-        )
+        myViewModel.bitmapDescriptor?.let { descriptor ->
+          Marker(
+            state = rememberMarkerState(key = "User Position", position = userPosition),
+            title = myViewModel.displayName,
+            snippet = "${myViewModel.status.emoji} ${myViewModel.status.description}",
+            icon = descriptor  // Use the descriptor from ViewModel
+          )
+        } ?: run {
+          // Add marker without custom icon if descriptor is null
+          Marker(
+            state = rememberMarkerState(key = "User Position", position = userPosition),
+            title = myViewModel.displayName,
+            snippet = "${myViewModel.status.emoji} ${myViewModel.status.description}"
+          )
+        }
+
+
+
 
         // display friends
         for(friend in myViewModel.friendsList) {
