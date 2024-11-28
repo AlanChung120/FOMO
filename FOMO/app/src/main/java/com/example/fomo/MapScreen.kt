@@ -103,9 +103,20 @@ fun Map(myViewModel: MyViewModel, friendLocation: LatLng?) {
     key = "Selected Location",
   )
 
+
   LaunchedEffect(key1 = true){
     myViewModel.loadImage(context, myViewModel.getImgUrl(myViewModel.uid))
   }
+
+  LaunchedEffect(key1 = myViewModel.friendsList) {
+    for (friend in myViewModel.friendsList) {
+      myViewModel.loadFriendImage(context, friend);
+    }
+  }
+
+
+
+
 
   Log.d("bitMapDescriptor", "${myViewModel.bitmapDescriptor}")
 
@@ -151,23 +162,16 @@ fun Map(myViewModel: MyViewModel, friendLocation: LatLng?) {
     ) {
       if (isMapLoaded) {
         val userPosition = LatLng(myViewModel.userLatitude, myViewModel.userLongitude)  // Create LatLng object
+        val icon = myViewModel.bitmapDescriptor
 
         // user avatar
-        myViewModel.bitmapDescriptor?.let { descriptor ->
           Marker(
             state = rememberMarkerState(key = "User Position", position = userPosition),
             title = myViewModel.displayName,
             snippet = "${myViewModel.status.emoji} ${myViewModel.status.description}",
-            icon = descriptor  // Use the descriptor from ViewModel
+            icon = icon  // Use the descriptor from ViewModel
           )
-        } ?: run {
-          // Add marker without custom icon if descriptor is null
-          Marker(
-            state = rememberMarkerState(key = "User Position", position = userPosition),
-            title = myViewModel.displayName,
-            snippet = "${myViewModel.status.emoji} ${myViewModel.status.description}"
-          )
-        }
+
 
 
 
@@ -182,11 +186,16 @@ fun Map(myViewModel: MyViewModel, friendLocation: LatLng?) {
           ).apply {
             showInfoWindow() // This ensures the info window is displayed when the marker is rendered
           }
+
+          val friendIcon = myViewModel.friendIcons[friend.uid]
+
           Marker(
             state = friendMarkerState,
             title = friend.displayName,
             snippet = "${friendStatus.emoji} ${friendStatus.description}",
+            icon = friendIcon,
           )
+
           // display friends' on my way routes
           if (friend.destination_latitude != null && friend.destination_longitude != null) {
             Marker(

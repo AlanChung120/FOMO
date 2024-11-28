@@ -52,25 +52,40 @@ import android.content.ContentResolver
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.core.graphics.drawable.toBitmap
 import coil.imageLoader
 import coil.request.ImageRequest
 import coil.request.SuccessResult
+import com.example.fomo.R
 import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 
 class MyViewModel : ViewModel() {
+
+
     private val _bitmapDescriptor = mutableStateOf<BitmapDescriptor?>(null)
     var bitmapDescriptor by _bitmapDescriptor
 
     suspend fun uriToBitmapDescriptor(context: Context, imageUri: String): BitmapDescriptor? {
+
         Log.d("ImageLoading", imageUri)
-        val request = ImageRequest.Builder(context)
-            .data(imageUri)
-            .allowHardware(false)
+        var request = ImageRequest.Builder(context)
+            .data(imageUri) // Uses either the URI or fallback drawable
+            .allowHardware(false) // Shown if data is null
             .build()
 
-        val result = context.imageLoader.execute(request)
+        var result = context.imageLoader.execute(request)
+
+        if (!(result is SuccessResult)){
+             request = ImageRequest.Builder(context)
+                .data(R.drawable.default_pfp) // Uses either the URI or fallback drawable
+                .allowHardware(false)
+                .build()
+            result = context.imageLoader.execute(request)
+        }
+
         if (result is SuccessResult) {
             Log.d("ImageLoading", "Image loaded successfully")
             val originalBitmap = result.drawable.toBitmap()
@@ -126,6 +141,17 @@ class MyViewModel : ViewModel() {
             _bitmapDescriptor.value = uriToBitmapDescriptor(context,imageUri)
         }
         Log.d("bitMapDescriptor", "updated ${_bitmapDescriptor.value}")
+    }
+
+    private val _friendIcons = mutableStateMapOf<String, BitmapDescriptor?>()
+    val friendIcons: Map<String, BitmapDescriptor?> get() = _friendIcons
+
+    fun loadFriendImage(context: Context, friend: User){
+        Log.d("ImageLoading", "loadFriendImageCalled")
+        viewModelScope.launch {
+            _friendIcons[friend.uid] = uriToBitmapDescriptor(context, getImgUrl(friend.uid))
+        }
+        Log.d("ImageLoading", "updated ${_friendIcons[uid]}")
     }
 
 
