@@ -26,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -160,7 +161,9 @@ fun Map(myViewModel: MyViewModel, friendLocation: LatLng?) {
         myViewModel.onMyWay(coords)
       }
     ) {
-      if (isMapLoaded) {
+      val isDataLoaded by myViewModel.isDataLoaded.collectAsState()
+      val isSessionRestored by myViewModel.sessionRestored.collectAsState()
+      if (isMapLoaded && isDataLoaded && isSessionRestored) {
         val userPosition = LatLng(myViewModel.userLatitude, myViewModel.userLongitude)  // Create LatLng object
         val icon = myViewModel.bitmapDescriptor
 
@@ -171,10 +174,6 @@ fun Map(myViewModel: MyViewModel, friendLocation: LatLng?) {
             snippet = "${myViewModel.status.emoji} ${myViewModel.status.description}",
             icon = icon  // Use the descriptor from ViewModel
           )
-
-
-
-
 
         // display friends
         for(friend in myViewModel.friendsList) {

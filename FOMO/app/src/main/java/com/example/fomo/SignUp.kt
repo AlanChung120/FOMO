@@ -36,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -55,6 +56,7 @@ class SignUp(private val myViewModel: MyViewModel) : Screen {
     var password by remember{ mutableStateOf<String>("") }
     val navigator = LocalNavigator.current
     var showError by remember {mutableStateOf(false)}
+    val context = LocalContext.current
 
     Box(
       contentAlignment = Alignment.BottomCenter,
@@ -149,7 +151,7 @@ class SignUp(private val myViewModel: MyViewModel) : Screen {
         Button(
           onClick = {
             // Sign Up function here!
-            myViewModel.signUp(username, password) {success ->
+            myViewModel.signUp(context, username, password) {success ->
               showError = !success
               if (success) {
                 navigator!!.push(SignIn(myViewModel))

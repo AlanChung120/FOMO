@@ -2,6 +2,7 @@ package com.example.fomo
 
 import android.net.Uri
 import android.graphics.Paint.Align
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -29,9 +30,22 @@ import cafe.adriel.voyager.core.screen.Screen
 import coil.compose.rememberAsyncImagePainter
 import com.example.fomo.models.MyViewModel
 
+
 class ProfileScreen(private val myViewModel: MyViewModel) : Screen {
   @Composable
   override fun Content() {
+    val isDataLoaded by myViewModel.isDataLoaded.collectAsState()
+    val isSessionRestored by myViewModel.sessionRestored.collectAsState()
+
+    if (isDataLoaded && isSessionRestored) {
+      ProfileContent(myViewModel)
+    } else {
+      LoadingScreen()
+    }
+  }
+}
+@Composable
+fun ProfileContent(myViewModel: MyViewModel) {
     var showDialog by remember { mutableStateOf(false) }  // popup state
     var toChange by remember { mutableStateOf("null") } // what to change
     var droppedDown by remember { mutableStateOf(false) } // display dropdown
@@ -309,5 +323,4 @@ class ProfileScreen(private val myViewModel: MyViewModel) : Screen {
         }
       }
     }
-  }
 }

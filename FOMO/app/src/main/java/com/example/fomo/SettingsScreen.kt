@@ -109,7 +109,7 @@ class SettingsScreen(private val myViewModel: MyViewModel) : Screen {
       Button(
         onClick = {
           // log out function here!
-          myViewModel.logout()
+          myViewModel.logout(context)
           navigator!!.push(SignIn(myViewModel))
         },
         colors = ButtonDefaults.buttonColors(

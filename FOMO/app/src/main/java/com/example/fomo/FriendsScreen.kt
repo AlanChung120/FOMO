@@ -97,6 +97,7 @@ package com.example.fomo
   import androidx.compose.material3.TextFieldColors
   import androidx.compose.material3.TextFieldDefaults
   import androidx.compose.runtime.MutableState
+  import androidx.compose.runtime.collectAsState
   import androidx.compose.runtime.mutableIntStateOf
   import androidx.compose.ui.window.Dialog
   import androidx.lifecycle.viewmodel.compose.viewModel
@@ -111,6 +112,8 @@ package com.example.fomo
       val selectedItemIndex = remember { mutableIntStateOf(-1) } // = mutableState so it can be changed when passed as param
       var selectedGroupReq by remember { mutableStateOf<Pair<User, Group>?>(null) }
       val friendsList = remember { mutableStateOf<List<User>>(myViewModel.friendsList)}
+      val isDataLoaded by myViewModel.isDataLoaded.collectAsState()
+      val isSessionRestored by myViewModel.sessionRestored.collectAsState()
 
       fun openFriendModal() {
         isFriendDialogOpen = true
@@ -125,50 +128,54 @@ package com.example.fomo
         isGroupReqDialogOpen = true
       }
 
-      Column(
-        verticalArrangement = Arrangement.spacedBy(24.dp),
-        modifier = Modifier
-          .fillMaxSize()
-          .padding(16.dp)
-      ) {
-        Header()
-        Nav(
-          selectedItemIndex,
-          ::openFriendModal,
-          ::openGroupModal,
-          ::openGroupRequest,
-          friendsList,
-          myViewModel
-        )
-        AddFriend(
-          isOpen = isFriendDialogOpen,
-          onDismissRequest = { isFriendDialogOpen = false },
-          selectedItemIndex.intValue,
-          friendsList.value,
-          myViewModel
-        )
-        CreateGroup(
-          isOpen = isGroupDialogOpen,
-          onDismissRequest = { isGroupDialogOpen = false },
-          selectedItemIndex,
-          friendsList,
-          myViewModel
-        )
-        if (selectedGroupReq != null) {
-          GroupRequest(
-            isOpen = isGroupReqDialogOpen,
-            onDismissRequest = { isGroupReqDialogOpen = false },
-            selectedGroupReq!!,
-            friendsList,
+      if (isDataLoaded && isSessionRestored) {
+        Column(
+          verticalArrangement = Arrangement.spacedBy(24.dp),
+          modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+        ) {
+          Header()
+          Nav(
             selectedItemIndex,
-            myViewModel,
+            ::openFriendModal,
+            ::openGroupModal,
+            ::openGroupRequest,
+            friendsList,
+            myViewModel
+          )
+          AddFriend(
+            isOpen = isFriendDialogOpen,
+            onDismissRequest = { isFriendDialogOpen = false },
+            selectedItemIndex.intValue,
+            friendsList.value,
+            myViewModel
+          )
+          CreateGroup(
+            isOpen = isGroupDialogOpen,
+            onDismissRequest = { isGroupDialogOpen = false },
+            selectedItemIndex,
+            friendsList,
+            myViewModel
+          )
+          if (selectedGroupReq != null) {
+            GroupRequest(
+              isOpen = isGroupReqDialogOpen,
+              onDismissRequest = { isGroupReqDialogOpen = false },
+              selectedGroupReq!!,
+              friendsList,
+              selectedItemIndex,
+              myViewModel,
+            )
+          }
+          FriendsList(
+            selectedItemIndex.intValue,
+            friendsList.value,
+            myViewModel
           )
         }
-        FriendsList(
-          selectedItemIndex.intValue,
-          friendsList.value,
-          myViewModel
-        )
+      } else {
+        LoadingScreen()
       }
     }
   }

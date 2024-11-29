@@ -36,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -55,6 +56,7 @@ class SignIn(private val myViewModel: MyViewModel) : Screen {
     var password by remember{ mutableStateOf<String>("") }
     val navigator = LocalNavigator.current
     var showError by remember {mutableStateOf(false) }
+    val context = LocalContext.current
 
     Box(
       contentAlignment = Alignment.BottomCenter,
@@ -149,12 +151,11 @@ class SignIn(private val myViewModel: MyViewModel) : Screen {
           onClick = {
             // Sign in function here!
 
-            myViewModel.signIn(email, password) { success ->
+            myViewModel.signIn(context, email, password) { success ->
               showError = !success
               if (success) {
                 // Navigate to the next screen
                 navigator!!.push(MapScreen(myViewModel))
-                myViewModel.fetchDatabase()
               } else {
                 // Show an error message
                 Log.e("AuthFlow", "Sign-in failed")

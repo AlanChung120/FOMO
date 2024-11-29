@@ -66,7 +66,12 @@ class MyViewModel : ViewModel() {
 
 
     private val _bitmapDescriptor = mutableStateOf<BitmapDescriptor?>(null)
+    private val _sessionRestored = MutableStateFlow(false)
+    private val _isDataLoaded = MutableStateFlow(false)
+
+    val isDataLoaded: StateFlow<Boolean> = _isDataLoaded
     var bitmapDescriptor by _bitmapDescriptor
+    val sessionRestored: StateFlow<Boolean> = _sessionRestored
 
     suspend fun uriToBitmapDescriptor(context: Context, imageUri: String): BitmapDescriptor? {
 
@@ -181,7 +186,7 @@ class MyViewModel : ViewModel() {
     private val _signedInFlow = MutableStateFlow(false)
     val signedIn: StateFlow<Boolean> = _signedInFlow
 
-    private fun setSignedInState(isSignedIn: Boolean) {
+    fun setSignedInState(isSignedIn: Boolean) {
         _signedInFlow.value = isSignedIn
     }
 
@@ -366,8 +371,56 @@ class MyViewModel : ViewModel() {
     // End of Map Functions
 
     // Start of Auth Functions
+    fun saveSession(context: Context, accessToken: String, refreshToken: String) {
+        val sharedPreferences = context.getSharedPreferences("UserSession", Context.MODE_PRIVATE)
+        with(sharedPreferences.edit()) {
+            putString("ACCESS_TOKEN", accessToken)
+            putString("REFRESH_TOKEN", refreshToken)
+            apply()
+        }
+    }
+    fun restoreSession(context: Context, onResult: (Boolean) -> Unit) {
+        val sharedPreferences = context.getSharedPreferences("UserSession", Context.MODE_PRIVATE)
+        val accessToken = sharedPreferences.getString("ACCESS_TOKEN", null)
+        val refreshToken = sharedPreferences.getString("REFRESH_TOKEN", null)
 
-    fun signUp(email: String, password: String, onResult: (Boolean) -> Unit) {
+        if (accessToken != null && refreshToken != null) {
+            viewModelScope.launch {
+                try {
+                    supabase.auth.refreshSession(refreshToken = refreshToken) // Refresh session
+                    val session = supabase.auth.currentSessionOrNull()
+                    if (session != null) {
+                        uid = supabase.auth.retrieveUserForCurrentSession(updateSession = true).id
+                        setSignedInState(true)
+                        _sessionRestored.value = true
+                        onResult(true)
+                        fetchDatabase()
+                    } else {
+                        _sessionRestored.value = true
+                        onResult(false)
+                    }
+                } catch (e: Exception) {
+                    Log.e("SessionRecovery", "Failed to restore session: ${e.message}")
+                    _sessionRestored.value = true
+                    onResult(false)
+                }
+            }
+        } else {
+            _sessionRestored.value = true
+            onResult(false)
+        }
+    }
+    fun clearSession(context: Context) {
+        val sharedPreferences = context.getSharedPreferences("UserSession", Context.MODE_PRIVATE)
+        with(sharedPreferences.edit()) {
+            clear()
+            apply()
+        }
+    }
+
+
+
+    fun signUp(context: Context, email: String, password: String, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             try {
                 // Call Supabase's signUpWith function
@@ -406,7 +459,7 @@ class MyViewModel : ViewModel() {
             }
         }
     }
-    fun signIn(email: String, password: String, onResult: (Boolean) -> Unit) {
+    fun signIn(context: Context, email: String, password: String, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             try{
                 supabase.auth.signInWith(Email) {
@@ -420,8 +473,10 @@ class MyViewModel : ViewModel() {
                 // initialize sign-in state and establish userid
                 if (session != null) {
                     Log.d("SupabaseAuth", "Session active, userid ${user.id}")
+                    saveSession(context, session.accessToken, session.refreshToken)
                     uid = user.id
                     onResult(true)
+                    fetchDatabase()
                     setSignedInState(true)
                 } else {
                     Log.d("SupabaseAuth", "Sign-in credentials invalid")
@@ -461,12 +516,14 @@ class MyViewModel : ViewModel() {
 
     }
 
-    fun logout() {
+    fun logout(context: Context) {
         viewModelScope.launch {
             try {
                 supabase.auth.signOut()
                 Log.d("SupabaseAuth", "User signed out")
                 setSignedInState(false)
+                _isDataLoaded.value = false
+                clearSession(context)
                 uid = ""
             } catch (e: Exception) {
                 Log.e("SupabaseAuth", "failed to sign out: ${e.message}")
@@ -654,6 +711,7 @@ class MyViewModel : ViewModel() {
                 fetchGroups()
 
                 Log.d("SupabaseConnection", "Friends fetched: $friendsList")
+                    _isDataLoaded.value = true
             } catch (e: Exception) {
                 Log.e("SupabaseConnection", "Failed to connect to database: ${e.message}")
             }

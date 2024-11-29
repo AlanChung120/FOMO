@@ -18,6 +18,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -50,6 +51,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -105,12 +107,20 @@ class MainActivity : ComponentActivity() {
     val locationPermissionsAlreadyGranted = LocationHelper.areLocationPermissionsGranted(this)
 
     enableEdgeToEdge()
-    setContent {
-      val myViewModel: MyViewModel = viewModel()
+    myViewModel.restoreSession(this) {success ->
+      if (success) {
+        myViewModel.setSignedInState(true)
+        Log.d("Supabase-Auth Session", "Session restored successfully")
+      } else {
+        Log.d("Supabase-Auth Session", "No sessions saved")
+      }
+      setContent {
+        val myViewModel: MyViewModel = viewModel()
 
-      FOMOTheme {
-        LocationHelper.LocationChecker(locationPermissionsAlreadyGranted, backgroundLocationGranted, myViewModel,this)
-        NavigatorFun(myViewModel = myViewModel)
+        FOMOTheme {
+          LocationHelper.LocationChecker(locationPermissionsAlreadyGranted, backgroundLocationGranted, myViewModel,this)
+          NavigatorFun(myViewModel = myViewModel)
+        }
       }
     }
 
@@ -192,11 +202,33 @@ class MainActivity : ComponentActivity() {
     coroutineScope.cancel()
   }
 }
-
+@Composable
+fun LoadingScreen() {
+  Box(
+    contentAlignment = Alignment.Center,
+    modifier = Modifier.fillMaxSize()
+  ) {
+    Text(
+      "LOADING",
+      fontSize = 16.sp,
+      modifier = Modifier.padding(vertical = 8.dp)
+    )
+  }
+}
 @Composable
 fun NavigatorFun(myViewModel: MyViewModel) {
-  Navigator(SignIn(myViewModel)) { Content(myViewModel) }
+  val isSignedIn by myViewModel.signedIn.collectAsState()
+  val sessionRestored by myViewModel.sessionRestored.collectAsState()
+
+  if (!sessionRestored) {
+    // Show a loading indicator while session restoration is in progress
+    LoadingScreen()
+  } else {
+    val startScreen = if (isSignedIn) MapScreen(myViewModel) else SignIn(myViewModel)
+    Navigator(startScreen) { Content(myViewModel) }
+  }
 }
+
 
 @Composable
 fun Content(myViewModel: MyViewModel) {
