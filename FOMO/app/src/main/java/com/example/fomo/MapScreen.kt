@@ -196,7 +196,7 @@ fun Map(myViewModel: MyViewModel, friendLocation: LatLng?) {
           )
 
           // display friends' on my way routes
-          if (friend.destination_latitude != null && friend.destination_longitude != null) {
+          if (friend.status_id == 2L && friend.destination_latitude != null && friend.destination_longitude != null) {
             Marker(
               state = rememberMarkerState(
                 key = "${friend.displayName}'s destination",
