@@ -102,8 +102,9 @@ package com.example.fomo
   import androidx.compose.ui.window.Dialog
   import androidx.lifecycle.viewmodel.compose.viewModel
   import com.example.fomo.models.Group
+  import kotlin.reflect.jvm.internal.impl.descriptors.Visibilities.Local
 
-  class FriendsScreen(private val myViewModel: MyViewModel) : Screen {
+class FriendsScreen(private val myViewModel: MyViewModel) : Screen {
     @Composable
     override fun Content() {
       var isFriendDialogOpen by remember { mutableStateOf(false )}
@@ -200,6 +201,8 @@ package com.example.fomo
           openGroupRequest: (Pair<User, Group>) -> Unit, friendsList: MutableState<List<User>>, myViewModel: MyViewModel) {
     var expanded by remember { mutableStateOf(false) }
 
+    val context = LocalContext.current
+
     Row(
       horizontalArrangement = Arrangement.SpaceBetween,
       verticalAlignment = Alignment.CenterVertically,
@@ -278,7 +281,7 @@ package com.example.fomo
                 )},
               onClick = {
                 selectedItemIndex.value = i
-                myViewModel.getGroupMembers(myViewModel.groupList[i].id!!) { result ->
+                myViewModel.getGroupMembers(context, myViewModel.groupList[i].id!!) { result ->
                   friendsList.value = result
                 }
                 expanded = false
@@ -344,7 +347,7 @@ package com.example.fomo
 
     fun onConfirmationRequest() {
       showRemoveFriendConfirmation = false
-      myViewModel.removeFriend(selectedFriend!!.username) { success ->
+      myViewModel.removeFriend(context, selectedFriend!!.username) { success ->
         if (success) {
           Toast.makeText(context, "Friend Removed", Toast.LENGTH_SHORT).show()
         } else {
@@ -399,7 +402,7 @@ package com.example.fomo
                 contentDescription = "Accept Friend Request",
                 modifier = Modifier.clickable(
                   onClick = {
-                    myViewModel.acceptRequest(requester.uid, myViewModel.uid) {result ->
+                    myViewModel.acceptRequest(context, requester.uid, myViewModel.uid) {result ->
                       if (result) {
                         Toast.makeText(context, "Successfully accepted friend request", Toast.LENGTH_SHORT).show()
                       } else {
@@ -414,7 +417,7 @@ package com.example.fomo
                 contentDescription = "Accept Friend Request",
                 modifier = Modifier.clickable(
                   onClick = {
-                    myViewModel.declineRequest(requester.uid, myViewModel.uid) {result ->
+                    myViewModel.declineRequest(context, requester.uid, myViewModel.uid) {result ->
                       if (result) {
                         Toast.makeText(context, "Successfully declined friend request", Toast.LENGTH_SHORT).show()
                       } else {
@@ -622,7 +625,7 @@ package com.example.fomo
               Button(
                 onClick = {
                   if (selectedItemIndex == -1) {
-                    myViewModel.createRequest(text) { success ->
+                    myViewModel.createRequest(context, text) { success ->
                       if (success) {
                         Toast.makeText(context, "Sent Friend Request", Toast.LENGTH_SHORT).show()
                       } else {
@@ -631,7 +634,7 @@ package com.example.fomo
                     }
                   } else {
                     if (selectedFriend != null) {
-                      myViewModel.createGroupRequest(myViewModel.groupList[selectedItemIndex].id!!, selectedFriend!!.uid) { success ->
+                      myViewModel.createGroupRequest(context, myViewModel.groupList[selectedItemIndex].id!!, selectedFriend!!.uid) { success ->
                         if (success) {
                           Toast.makeText(context, "Sent Invite to Group", Toast.LENGTH_SHORT).show()
                         } else {
@@ -708,10 +711,10 @@ package com.example.fomo
             ) {
               Button(
                 onClick = {
-                  myViewModel.createGroup(text) { result ->
+                  myViewModel.createGroup(context, text) { result ->
                     if (result != -1L) {
                       Toast.makeText(context, "Group Created", Toast.LENGTH_LONG).show()
-                      myViewModel.getGroupMembers(result) { members ->
+                      myViewModel.getGroupMembers(context, result) { members ->
                         friendsList.value = members
                         selectedItemIndex.value = myViewModel.groupList.indexOfFirst { it.id == result }
                       }
@@ -792,10 +795,10 @@ package com.example.fomo
               ) {
                 Button(
                   onClick = {
-                    myViewModel.acceptGroupRequest(group.id!!) { result ->
+                    myViewModel.acceptGroupRequest(context, group.id!!) { result ->
                       if (result != -1L) {
                         Toast.makeText(context, "Request Accepted", Toast.LENGTH_SHORT).show()
-                        myViewModel.getGroupMembers(result) { members ->
+                        myViewModel.getGroupMembers(context, result) { members ->
                           friendsList.value = members
                           selectedItemIndex.value = myViewModel.groupList.indexOfFirst { it.id == result }
                         }
@@ -814,7 +817,7 @@ package com.example.fomo
                 }
                 Button (
                   onClick = {
-                    myViewModel.declineGroupRequest(group.id!!) {result ->
+                    myViewModel.declineGroupRequest(context, group.id!!) {result ->
                       if (result) {
                         Toast.makeText(context, "Request declined", Toast.LENGTH_SHORT).show()
                       } else {
@@ -916,7 +919,7 @@ package com.example.fomo
               imageVector = Icons.Default.Check, contentDescription = "Check Icon",
               modifier = Modifier.clickable (
                 onClick = {
-                  myViewModel.acceptRequest(request.uid, myViewModel.uid) { success ->
+                  myViewModel.acceptRequest(context, request.uid, myViewModel.uid) { success ->
                     if (success) {
                       Toast.makeText(context, "Friend Request Accepted", Toast.LENGTH_SHORT).show()
                     } else {
@@ -930,7 +933,7 @@ package com.example.fomo
               imageVector = Icons.Default.Close, contentDescription = "X Icon",
               modifier = Modifier.clickable (
                 onClick = {
-                  myViewModel.declineRequest(request.uid, myViewModel.uid) { success ->
+                  myViewModel.declineRequest(context, request.uid, myViewModel.uid) { success ->
                     if (success) {
                       Toast.makeText(context, "Friend Request Declined", Toast.LENGTH_SHORT).show()
                     } else {
@@ -985,7 +988,7 @@ package com.example.fomo
   fun showNotification(context: Context, message: String) {
     val builder = NotificationCompat.Builder(context, "friend_request_channel")
       .setSmallIcon(R.drawable.notification_icon) // Replace with your icon
-      .setContentTitle("New Friend Request")
+      .setContentTitle("New Request")
       .setContentText(message)
       .setPriority(NotificationCompat.PRIORITY_DEFAULT)
 

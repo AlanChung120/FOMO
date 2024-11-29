@@ -124,7 +124,7 @@ class MainActivity : ComponentActivity() {
       }
     }
 
-    updateData()
+    updateData(this)
   }
 
 
@@ -180,14 +180,14 @@ class MainActivity : ComponentActivity() {
     }
   }
 
-  private fun updateData() {
+  private fun updateData(context: Context) {
     lifecycleScope.launch {
       myViewModel.signedIn.collect { isSignedIn ->
         if (isSignedIn) {
           while (isActive) {
-            myViewModel.fetchFriends()
+            myViewModel.fetchFriends(context)
             myViewModel.fetchPlaces()
-            myViewModel.fetchGroups()
+            myViewModel.fetchGroups(context)
             LocationHelper.getPreciseLocation(this@MainActivity, myViewModel)
             delay(5000)
             Log.d("updateData", "data has been updated")

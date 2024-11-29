@@ -1,5 +1,6 @@
 package com.example.fomo.models
 
+import android.Manifest
 import android.util.Log
 import android.graphics.Canvas
 import android.graphics.Paint
@@ -50,15 +51,25 @@ import kotlinx.serialization.json.jsonPrimitive
 import java.io.InputStream
 import android.content.ContentResolver
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.snapshots.SnapshotStateMap
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import coil.imageLoader
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import com.example.fomo.R
+import com.example.fomo.showNotification
 import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 
@@ -68,6 +79,8 @@ class MyViewModel : ViewModel() {
     private val _bitmapDescriptor = mutableStateOf<BitmapDescriptor?>(null)
     private val _sessionRestored = MutableStateFlow(false)
     private val _isDataLoaded = MutableStateFlow(false)
+    private var previousGroupRequestCount by mutableStateOf(0)
+    private var previousFriendRequestCount by mutableStateOf(0)
 
     val isDataLoaded: StateFlow<Boolean> = _isDataLoaded
     var bitmapDescriptor by _bitmapDescriptor
@@ -394,7 +407,7 @@ class MyViewModel : ViewModel() {
                         setSignedInState(true)
                         _sessionRestored.value = true
                         onResult(true)
-                        fetchDatabase()
+                        fetchDatabase(context)
                     } else {
                         _sessionRestored.value = true
                         onResult(false)
@@ -476,7 +489,7 @@ class MyViewModel : ViewModel() {
                     saveSession(context, session.accessToken, session.refreshToken)
                     uid = user.id
                     onResult(true)
-                    fetchDatabase()
+                    fetchDatabase(context)
                     setSignedInState(true)
                 } else {
                     Log.d("SupabaseAuth", "Sign-in credentials invalid")
@@ -594,7 +607,7 @@ class MyViewModel : ViewModel() {
         }
     }
 
-    fun fetchFriends() {
+    fun fetchFriends(context: Context) {
         viewModelScope.launch {
             try {
                 val userRes = supabase.from("users")
@@ -638,6 +651,17 @@ class MyViewModel : ViewModel() {
                 friendsList = tempFriends
                 requestList = tempRequesters
 
+                if (tempRequesters.size > previousFriendRequestCount){
+                    Log.d("friendrequestsent", "Friendrequestsent")
+                    val newRequest = tempRequesters.drop(previousFriendRequestCount)
+                    newRequest.forEach {(friend)->
+                        val message = "You have a new friend request"
+                        showNotification(context, message)
+                    }
+                }
+
+                previousFriendRequestCount = tempRequesters.size
+
 
             } catch (e: Exception) {
                 Log.e("SupabaseConnection", "Failed to connect to database: ${e.message}")
@@ -645,7 +669,7 @@ class MyViewModel : ViewModel() {
         }
     }
 
-    suspend fun fetchGroups() {
+    suspend fun fetchGroups(context: Context) {
         try {
             val linkRes = supabase.from("group_links")
                 .select() {
@@ -679,13 +703,40 @@ class MyViewModel : ViewModel() {
             groupList = tempGroups
             groupRequestList = tempRequesters
 
+            if (tempRequesters.size > previousGroupRequestCount){
+                Log.d("friendrequestsent", "Friendrequestsent")
+                val newRequest = tempRequesters.drop(previousGroupRequestCount)
+                newRequest.forEach {(sender, group)->
+                    val message = "You have a new group invite to ${group.name} from ${sender.displayName}"
+                    showNotification(context, message)
+                }
+            }
+
+            previousGroupRequestCount = tempRequesters.size
             Log.d("groupFetching", "Success!")
         } catch (e: Exception) {
             Log.e("SupabaseConnection", "Failed to connect to database: ${e.message}")
         }
     }
 
-    fun fetchDatabase() {
+//    private fun showNotification(context: Context, message: String) {
+//        val builder = NotificationCompat.Builder(context, "group_invite_channel")
+//            .setSmallIcon(R.drawable.notification_icon) // Replace with your icon
+//            .setContentTitle("New Group Invitation")
+//            .setContentText(message)
+//            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+//
+//        with(NotificationManagerCompat.from(context)) {
+//            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || ContextCompat.checkSelfPermission(
+//                    context, Manifest.permission.POST_NOTIFICATIONS
+//                ) == PackageManager.PERMISSION_GRANTED
+//            ) {
+//                notify(System.currentTimeMillis().toInt(), builder.build()) // Unique ID for each notification
+//            }
+//        }
+//    }
+
+    fun fetchDatabase(context: Context) {
         viewModelScope.launch {
             try {
                 val statusRes = supabase.from("statuses").select().decodeList<Status>()
@@ -706,9 +757,9 @@ class MyViewModel : ViewModel() {
                 imageUri = Uri.parse(getImgUrl(uid))
 
                 fetchRoute()
-                fetchFriends()
+                fetchFriends(context)
                 fetchPlaces()
-                fetchGroups()
+                fetchGroups(context)
 
                 Log.d("SupabaseConnection", "Friends fetched: $friendsList")
                     _isDataLoaded.value = true
@@ -867,7 +918,7 @@ class MyViewModel : ViewModel() {
         }
     }
 
-    fun createRequest(username: String, onResult: (Boolean) -> Unit) {
+    fun createRequest(context: Context, username: String, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             try {
                 val receiver = supabase.from("users").select() { // Find the receiver
@@ -891,13 +942,13 @@ class MyViewModel : ViewModel() {
                             eq("receiver_id", uid)
                         }
                     }
-                    fetchFriends()
+                    fetchFriends(context)
                     onResult(true)
                 } else if (oppositeCheck.isEmpty() && receiver.uid != uid) { // if not create a new friend request
                     val newRequest = Friendship(createdAt = dateFormat.format(Date()), requesterId = uid,
                         receiverId = receiver.uid, accepted = false)
                     supabase.from("friendship").insert(newRequest)
-                    fetchFriends()
+                    fetchFriends(context)
                     onResult(true)
                 } else {
                     onResult(false)
@@ -909,7 +960,7 @@ class MyViewModel : ViewModel() {
         }
     }
 
-    fun removeFriend(username: String, onResult: (Boolean) -> Unit) {
+    fun removeFriend(context: Context, username: String, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             try {
                 val friendToRemove = supabase.from("users").select() {
@@ -931,7 +982,7 @@ class MyViewModel : ViewModel() {
                         }
                     }
                 }
-                fetchFriends()
+                fetchFriends(context)
                 onResult(true)
             } catch(e: Exception) {
                 Log.e("SupabaseConnection", "DB Error: ${e.message}")
@@ -940,7 +991,7 @@ class MyViewModel : ViewModel() {
         }
     }
 
-    fun acceptRequest(requester: String, receiver: String, onResult: (Boolean) -> Unit) {
+    fun acceptRequest(context: Context, requester: String, receiver: String, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             try {
                 supabase.from("friendship").update({
@@ -952,7 +1003,7 @@ class MyViewModel : ViewModel() {
                         eq("receiver_id", receiver)
                     }
                 }
-                fetchFriends()
+                fetchFriends(context)
                 onResult(true)
             } catch (e: Exception) {
                 Log.e("SupabaseConnection", "DB Error: ${e.message}")
@@ -961,7 +1012,7 @@ class MyViewModel : ViewModel() {
         }
     }
 
-    fun declineRequest(requester: String, receiver: String, onResult: (Boolean) -> Unit) {
+    fun declineRequest(context: Context, requester: String, receiver: String, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             try {
                 supabase.from("friendship").delete(){
@@ -970,7 +1021,7 @@ class MyViewModel : ViewModel() {
                         eq("receiver_id", receiver)
                     }
                 }
-                fetchFriends()
+                fetchFriends(context)
                 onResult(true)
             } catch (e: Exception) {
                 Log.e("SupabaseConnection", "DB Error: ${e.message}")
@@ -981,7 +1032,7 @@ class MyViewModel : ViewModel() {
     }
 
     // create a group
-    fun createGroup(groupName: String, onResult: (Long) -> Unit) {
+    fun createGroup(context:Context, groupName: String, onResult: (Long) -> Unit) {
         viewModelScope.launch {
             var groupCreated: Group? = null
             try{
@@ -993,7 +1044,7 @@ class MyViewModel : ViewModel() {
                 val newLink = GroupLink(createdAt = dateFormat.format(Date()), userId = uid,
                     senderUid = uid, groupId = groupCreated.id ?: 0, accepted = true)
                 supabase.from("group_links").insert(newLink)
-                fetchGroups()
+                fetchGroups(context)
                 println("urmom1 ${groupCreated.id!!}")
                 onResult(groupCreated.id!!)
             } catch (e: Exception) {
@@ -1004,7 +1055,7 @@ class MyViewModel : ViewModel() {
     }
 
     // create a group request to add someone to the group
-    fun createGroupRequest(groupId: Long, userId: String, onResult: (Boolean) -> Unit) {
+    fun createGroupRequest(context: Context, groupId: Long, userId: String, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             try{
                 val response = supabase.from("group_links").select() {
@@ -1018,7 +1069,7 @@ class MyViewModel : ViewModel() {
                     val newRequest = GroupLink(createdAt = dateFormat.format(Date()), userId = userId,
                         senderUid = uid, groupId = groupId, accepted = false)
                     supabase.from("group_links").insert(newRequest)
-                    fetchGroups()
+                    fetchGroups(context)
                 }
                 onResult(true)
             } catch (e: Exception) {
@@ -1029,7 +1080,7 @@ class MyViewModel : ViewModel() {
     }
 
     // leave group
-    fun removeGroup(groupId: Long, onResult: (Boolean) -> Unit) {
+    fun removeGroup(context: Context, groupId: Long, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             try {
                 val groupDelete = supabase.from("groups").select() {
@@ -1050,7 +1101,7 @@ class MyViewModel : ViewModel() {
                         }
                     }
                 }
-                fetchGroups()
+                fetchGroups(context)
                 onResult(true)
             } catch(e: Exception) {
                 Log.e("SupabaseConnection", "DB Error: ${e.message}")
@@ -1060,7 +1111,7 @@ class MyViewModel : ViewModel() {
     }
 
     // accept group requests
-    fun acceptGroupRequest(groupId: Long, onResult: (Long) -> Unit) {
+    fun acceptGroupRequest(context: Context, groupId: Long, onResult: (Long) -> Unit) {
         viewModelScope.launch {
             try {
                 supabase.from("group_links").update({
@@ -1071,7 +1122,7 @@ class MyViewModel : ViewModel() {
                         eq("group_id", groupId)
                     }
                 }
-                fetchGroups()
+                fetchGroups(context)
                 onResult(groupId)
             } catch (e: Exception) {
                 Log.e("SupabaseConnection", "DB Error: ${e.message}")
@@ -1081,7 +1132,7 @@ class MyViewModel : ViewModel() {
     }
 
     // decline group requests
-    fun declineGroupRequest(groupId: Long, onResult: (Boolean) -> Unit) {
+    fun declineGroupRequest(context: Context, groupId: Long, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             try {
                 supabase.from("group_links").delete() {
@@ -1090,7 +1141,7 @@ class MyViewModel : ViewModel() {
                         eq("group_id", groupId);
                     }
                 }
-                fetchGroups()
+                fetchGroups(context)
                 onResult(true)
             } catch(e: Exception) {
                 Log.e("SupabaseConnection", "DB Error: ${e.message}")
@@ -1100,11 +1151,11 @@ class MyViewModel : ViewModel() {
     }
 
     // get group member list of the given group id
-    fun getGroupMembers(groupId: Long, onResult: (List<User>) -> Unit) {
+    fun getGroupMembers(context: Context, groupId: Long, onResult: (List<User>) -> Unit) {
         val tempMembers = mutableListOf<User>()
         viewModelScope.launch {
             try {
-                fetchGroups()
+                fetchGroups(context)
                 val groupLinkList = supabase.from("group_links").select() {
                     filter {
                         eq("group_id", groupId)
