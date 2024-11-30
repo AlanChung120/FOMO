@@ -204,15 +204,19 @@ fun ProfileContent(myViewModel: MyViewModel) {
           modifier = Modifier.weight(1f) // Push the text to the left
         )
 
-        Box(
-        ) {
-
-          // Main button to trigger the dropdown
+        Box {
           Button(
+            shape = RoundedCornerShape(24.dp),
             onClick = { droppedDown = !droppedDown },
-            modifier = Modifier.width(200.dp))
-          {
-            Text(text = "${myViewModel.status.emoji} ${myViewModel.status.description}")
+            modifier = Modifier
+              .padding(6.dp)
+          ) {
+            Text(
+              text = "${myViewModel.status.emoji} ${myViewModel.status.description}",
+              fontSize = 14.sp,
+              fontWeight = FontWeight.Normal,
+              modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+            )
           }
 
           // Dropdown menu items
@@ -222,20 +226,21 @@ fun ProfileContent(myViewModel: MyViewModel) {
             modifier = Modifier
               .width(200.dp)
               .heightIn(max = 400.dp) // Set max height of the dropdown
-              .background(Color.LightGray)
+              .background(Color.White)
               .padding(8.dp)
               .background(Color.White, shape = RoundedCornerShape(10.dp)),
             offset = DpOffset(x = 0.dp, y = 0.dp),
-            properties = PopupProperties(focusable = true)
+            properties = PopupProperties(focusable = true),
           ) {
             myViewModel.statusList.forEach { activity ->
-              DropdownMenuItem(
-                text = { Text(text = "${activity.emoji} ${activity.description}") },
-                onClick = {
-                  myViewModel.updateStatus(activity)
-                  droppedDown = false
-
-                })
+              if (activity.description != "Idle") {
+                DropdownMenuItem(
+                  text = { Text(text = "${activity.emoji} ${activity.description}") },
+                  onClick = {
+                    myViewModel.updateStatus(activity)
+                    droppedDown = false
+                  })
+              }
             }
           }
         }

@@ -59,6 +59,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.core.app.NotificationCompat
@@ -227,6 +228,7 @@ class MyViewModel : ViewModel() {
     var route by mutableStateOf<List<LatLng>?>(null)
     var mode by mutableStateOf("walking")
     var places by mutableStateOf<List<Place>>(emptyList())
+    var groupIndex by mutableIntStateOf(-1)
 
     val routeMutex = Mutex()
 

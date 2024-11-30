@@ -110,7 +110,6 @@ class FriendsScreen(private val myViewModel: MyViewModel) : Screen {
       var isFriendDialogOpen by remember { mutableStateOf(false )}
       var isGroupDialogOpen by remember { mutableStateOf(false) }
       var isGroupReqDialogOpen by remember { mutableStateOf(false) }
-      val selectedItemIndex = remember { mutableIntStateOf(-1) } // = mutableState so it can be changed when passed as param
       var selectedGroupReq by remember { mutableStateOf<Pair<User, Group>?>(null) }
       val friendsList = remember { mutableStateOf<List<User>>(myViewModel.friendsList)}
       val isDataLoaded by myViewModel.isDataLoaded.collectAsState()
@@ -138,7 +137,6 @@ class FriendsScreen(private val myViewModel: MyViewModel) : Screen {
         ) {
           Header()
           Nav(
-            selectedItemIndex,
             ::openFriendModal,
             ::openGroupModal,
             ::openGroupRequest,
@@ -148,14 +146,12 @@ class FriendsScreen(private val myViewModel: MyViewModel) : Screen {
           AddFriend(
             isOpen = isFriendDialogOpen,
             onDismissRequest = { isFriendDialogOpen = false },
-            selectedItemIndex.intValue,
             friendsList.value,
             myViewModel
           )
           CreateGroup(
             isOpen = isGroupDialogOpen,
             onDismissRequest = { isGroupDialogOpen = false },
-            selectedItemIndex,
             friendsList,
             myViewModel
           )
@@ -165,12 +161,10 @@ class FriendsScreen(private val myViewModel: MyViewModel) : Screen {
               onDismissRequest = { isGroupReqDialogOpen = false },
               selectedGroupReq!!,
               friendsList,
-              selectedItemIndex,
               myViewModel,
             )
           }
           FriendsList(
-            selectedItemIndex.intValue,
             friendsList.value,
             myViewModel
           )
@@ -197,8 +191,8 @@ class FriendsScreen(private val myViewModel: MyViewModel) : Screen {
 
   @OptIn(ExperimentalMaterial3Api::class)
   @Composable
-  fun Nav(selectedItemIndex: MutableState<Int>, openAddFriend: () -> Unit, openCreateGroup: () -> Unit,
-          openGroupRequest: (Pair<User, Group>) -> Unit, friendsList: MutableState<List<User>>, myViewModel: MyViewModel) {
+  fun Nav(openAddFriend: () -> Unit, openCreateGroup: () -> Unit, openGroupRequest: (Pair<User, Group>) -> Unit,
+          friendsList: MutableState<List<User>>, myViewModel: MyViewModel) {
     var expanded by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
@@ -217,7 +211,7 @@ class FriendsScreen(private val myViewModel: MyViewModel) : Screen {
         modifier = Modifier.width(250.dp)
       ) {
         OutlinedTextField(
-          value = if (selectedItemIndex.value == -1) "All Friends" else myViewModel.groupList[selectedItemIndex.value].name,
+          value = if (myViewModel.groupIndex == -1) "All Friends" else myViewModel.groupList[myViewModel.groupIndex].name,
           onValueChange = {},
           readOnly = true,
           trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
@@ -240,10 +234,10 @@ class FriendsScreen(private val myViewModel: MyViewModel) : Screen {
             text = {
               Text(
                 text = "All Friends",
-                fontWeight = if (selectedItemIndex.value == -1) FontWeight.Bold else FontWeight.Normal
+                fontWeight = if (myViewModel.groupIndex == -1) FontWeight.Bold else FontWeight.Normal
               )},
             onClick = {
-              selectedItemIndex.value = -1
+              myViewModel.groupIndex = -1
               expanded = false
               friendsList.value = myViewModel.friendsList
             }
@@ -277,10 +271,10 @@ class FriendsScreen(private val myViewModel: MyViewModel) : Screen {
               text = {
                 Text(
                   text = group.name,
-                  fontWeight = if (i == selectedItemIndex.value) FontWeight.Bold else FontWeight.Normal
+                  fontWeight = if (i == myViewModel.groupIndex) FontWeight.Bold else FontWeight.Normal
                 )},
               onClick = {
-                selectedItemIndex.value = i
+                myViewModel.groupIndex = i
                 myViewModel.getGroupMembers(context, myViewModel.groupList[i].id!!) { result ->
                   friendsList.value = result
                 }
@@ -315,7 +309,7 @@ class FriendsScreen(private val myViewModel: MyViewModel) : Screen {
         modifier = Modifier.height(50.dp),
         shape = RoundedCornerShape(8.dp)
       ) {
-        if (selectedItemIndex.value == -1) {
+        if (myViewModel.groupIndex == -1) {
           Icon(imageVector = Icons.Default.PersonAdd, contentDescription = "Add Friend")
         } else {
           Icon(imageVector = Icons.Default.PersonAddAlt1, contentDescription = "Add Friend to Group")
@@ -326,7 +320,7 @@ class FriendsScreen(private val myViewModel: MyViewModel) : Screen {
   }
 
   @Composable
-  fun FriendsList(selectedItemIndex: Int, friendsList: List<User>, myViewModel: MyViewModel) {
+  fun FriendsList(friendsList: List<User>, myViewModel: MyViewModel) {
     val navigator = LocalNavigator.current
     val context = LocalContext.current
     val expanded = remember { mutableStateMapOf<String, Boolean>() }
@@ -362,7 +356,7 @@ class FriendsScreen(private val myViewModel: MyViewModel) : Screen {
     // End of Remove Friend Confirmation
 
     // List of Friend Requests (above friends)
-    if (selectedItemIndex == -1) {
+    if (myViewModel.groupIndex == -1) {
       Column(
         verticalArrangement = Arrangement.spacedBy(16.dp)
       ) {
@@ -490,7 +484,7 @@ class FriendsScreen(private val myViewModel: MyViewModel) : Screen {
             )
           }
           Spacer(modifier = Modifier.weight(1f))
-          if (selectedItemIndex == -1) {
+          if (myViewModel.groupIndex == -1) {
             Box {
               Icon(
                 imageVector = Icons.Default.MoreVert,
@@ -523,8 +517,8 @@ class FriendsScreen(private val myViewModel: MyViewModel) : Screen {
 
   @OptIn(ExperimentalMaterial3Api::class)
   @Composable
-  fun AddFriend(isOpen: Boolean, onDismissRequest: () -> Unit, selectedItemIndex: Int,
-                friendsList: List<User>, myViewModel: MyViewModel) {
+  fun AddFriend(isOpen: Boolean, onDismissRequest: () -> Unit, friendsList: List<User>,
+                myViewModel: MyViewModel) {
     if (isOpen) {
       val context = LocalContext.current
       var text by remember { mutableStateOf("") }
@@ -545,13 +539,13 @@ class FriendsScreen(private val myViewModel: MyViewModel) : Screen {
               .fillMaxSize()
           ) {
             Text(
-              text = if (selectedItemIndex == -1) "Add Friend" else "Add Friend to Group",
+              text = if (myViewModel.groupIndex == -1) "Add Friend" else "Add Friend to Group",
               fontWeight = FontWeight.Bold,
               fontSize = 24.sp,
               modifier = Modifier.padding(top = 8.dp)
             )
 
-            if (selectedItemIndex == -1) {
+            if (myViewModel.groupIndex == -1) {
               OutlinedTextField(
                 value = text,
                 onValueChange = { text = it },
@@ -624,7 +618,7 @@ class FriendsScreen(private val myViewModel: MyViewModel) : Screen {
             ) {
               Button(
                 onClick = {
-                  if (selectedItemIndex == -1) {
+                  if (myViewModel.groupIndex == -1) {
                     myViewModel.createRequest(context, text) { success ->
                       if (success) {
                         Toast.makeText(context, "Sent Friend Request", Toast.LENGTH_SHORT).show()
@@ -634,7 +628,7 @@ class FriendsScreen(private val myViewModel: MyViewModel) : Screen {
                     }
                   } else {
                     if (selectedFriend != null) {
-                      myViewModel.createGroupRequest(context, myViewModel.groupList[selectedItemIndex].id!!, selectedFriend!!.uid) { success ->
+                      myViewModel.createGroupRequest(context, myViewModel.groupList[myViewModel.groupIndex].id!!, selectedFriend!!.uid) { success ->
                         if (success) {
                           Toast.makeText(context, "Sent Invite to Group", Toast.LENGTH_SHORT).show()
                         } else {
@@ -666,8 +660,8 @@ class FriendsScreen(private val myViewModel: MyViewModel) : Screen {
   }
 
   @Composable
-  fun CreateGroup(isOpen: Boolean, onDismissRequest: () -> Unit, selectedItemIndex: MutableState<Int>,
-                  friendsList: MutableState<List<User>>, myViewModel: MyViewModel) {
+  fun CreateGroup(isOpen: Boolean, onDismissRequest: () -> Unit, friendsList: MutableState<List<User>>,
+                  myViewModel: MyViewModel) {
     if (isOpen) {
       val context = LocalContext.current
       var text by remember { mutableStateOf("") }
@@ -716,7 +710,7 @@ class FriendsScreen(private val myViewModel: MyViewModel) : Screen {
                       Toast.makeText(context, "Group Created", Toast.LENGTH_LONG).show()
                       myViewModel.getGroupMembers(context, result) { members ->
                         friendsList.value = members
-                        selectedItemIndex.value = myViewModel.groupList.indexOfFirst { it.id == result }
+                        myViewModel.groupIndex = myViewModel.groupList.indexOfFirst { it.id == result }
                       }
                     } else {
                       Toast.makeText(context, "Error: Something went wrong", Toast.LENGTH_SHORT)
@@ -745,7 +739,7 @@ class FriendsScreen(private val myViewModel: MyViewModel) : Screen {
 
   @Composable
   fun GroupRequest(isOpen: Boolean, onDismissRequest: () -> Unit, selectedGroupReq: Pair<User, Group>,
-                   friendsList: MutableState<List<User>>, selectedItemIndex: MutableState<Int>, myViewModel: MyViewModel) {
+                   friendsList: MutableState<List<User>>, myViewModel: MyViewModel) {
     if (isOpen) {
       val sender: User = selectedGroupReq.first
       val group: Group = selectedGroupReq.second
@@ -800,7 +794,7 @@ class FriendsScreen(private val myViewModel: MyViewModel) : Screen {
                         Toast.makeText(context, "Request Accepted", Toast.LENGTH_SHORT).show()
                         myViewModel.getGroupMembers(context, result) { members ->
                           friendsList.value = members
-                          selectedItemIndex.value = myViewModel.groupList.indexOfFirst { it.id == result }
+                          myViewModel.groupIndex = myViewModel.groupList.indexOfFirst { it.id == result }
                         }
                       } else {
                         Toast.makeText(context, "Error: Something went wrong", Toast.LENGTH_SHORT)

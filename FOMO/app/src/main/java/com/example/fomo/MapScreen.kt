@@ -1,28 +1,45 @@
 package com.example.fomo
 
 import android.util.Log
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.DirectionsBus
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PedalBike
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -37,7 +54,12 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.PopupProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.core.screen.Screen
 import com.example.fomo.const.Colors
@@ -52,6 +74,7 @@ import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberMarkerState
 import com.google.maps.android.compose.Circle
+import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.MarkerComposable
 import kotlinx.serialization.InternalSerializationApi
 
@@ -92,7 +115,7 @@ fun CustomMapMarker(
   }
 }
 
-@OptIn(InternalSerializationApi::class)
+@OptIn(InternalSerializationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun Map(myViewModel: MyViewModel, friendLocation: LatLng?) {
   val context = LocalContext.current
@@ -103,7 +126,8 @@ fun Map(myViewModel: MyViewModel, friendLocation: LatLng?) {
   val markerState = rememberMarkerState(
     key = "Selected Location",
   )
-
+  var groupsExpanded by remember { mutableStateOf(false) }
+  var statusExpanded by remember { mutableStateOf(false) }
 
   LaunchedEffect(key1 = true){
     myViewModel.loadImage(context, myViewModel.getImgUrl(myViewModel.uid))
@@ -114,10 +138,6 @@ fun Map(myViewModel: MyViewModel, friendLocation: LatLng?) {
       myViewModel.loadFriendImage(context, friend);
     }
   }
-
-
-
-
 
   Log.d("bitMapDescriptor", "${myViewModel.bitmapDescriptor}")
 
@@ -159,7 +179,10 @@ fun Map(myViewModel: MyViewModel, friendLocation: LatLng?) {
       },
       onMapClick = { coords ->
         myViewModel.onMyWay(coords)
-      }
+      },
+      uiSettings = MapUiSettings(
+        zoomControlsEnabled = false
+      )
     ) {
       val isDataLoaded by myViewModel.isDataLoaded.collectAsState()
       val isSessionRestored by myViewModel.sessionRestored.collectAsState()
@@ -176,7 +199,8 @@ fun Map(myViewModel: MyViewModel, friendLocation: LatLng?) {
           )
 
         // display friends
-        for(friend in myViewModel.friendsList) {
+        val friendsList = if (myViewModel.groupIndex == -1) myViewModel.friendsList else myViewModel.groupMemberList
+        for(friend in friendsList) {
           val friendLocation = LatLng(friend.latitude, friend.longitude)
           val friendStatus = myViewModel.statusList.filter {it.id == friend.status_id}[0]
           val friendMarkerState = rememberMarkerState(
@@ -249,27 +273,129 @@ fun Map(myViewModel: MyViewModel, friendLocation: LatLng?) {
       }
     }
 
-    // Display Status
-    Card(
-      colors = CardDefaults.cardColors(
-        containerColor = Color.White
-      ),
-      shape = RoundedCornerShape(24.dp),
+    // Friend groups / circles dropdown
+    ExposedDropdownMenuBox(
+      expanded = groupsExpanded,
+      onExpandedChange = {
+        groupsExpanded = !groupsExpanded
+      },
       modifier = Modifier
-        .align(Alignment.TopEnd) // Position card at the top center
-        .padding(16.dp), // Padding from the top or screen edges
+        .align(Alignment.TopCenter)
+        .padding(16.dp)
     ) {
-      Column(
-        modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+      OutlinedTextField(
+        value = if (myViewModel.groupIndex == -1) "All Friends" else myViewModel.groupList[myViewModel.groupIndex].name,
+        onValueChange = {},
+        readOnly = true,
+        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = groupsExpanded) },
+        colors = TextFieldDefaults.colors(
+          focusedIndicatorColor = Color.Black,
+          unfocusedContainerColor = Color.White,
+          focusedContainerColor = Color.White,
+        ),
+        shape = RoundedCornerShape(8.dp),
+        textStyle = TextStyle(
+          fontSize = 14.sp,
+        ),
+        modifier = Modifier
+          .height(48.dp)
+          .width(300.dp)
+          .menuAnchor()
+      )
+
+      ExposedDropdownMenu(
+        expanded = groupsExpanded,
+        onDismissRequest = { groupsExpanded = false },
+        modifier = Modifier.background(Color.White)
       ) {
-        Text(
-          text = "${myViewModel.status.description} ${myViewModel.status.emoji}",
-          color = Color.Black,
+        // Show all friends (not a group)
+        DropdownMenuItem(
+          text = {
+            Text(
+              text = "All Friends",
+              fontWeight = if (myViewModel.groupIndex == -1) FontWeight.Bold else FontWeight.Normal
+            )},
+          onClick = {
+            myViewModel.groupIndex = -1
+            groupsExpanded = false
+          },
         )
-//        Text(
-//          text = "MC",
-//          color = Color.Black,
-//        )
+        // Friend groups
+        myViewModel.groupList.forEachIndexed { i, group ->
+          DropdownMenuItem(
+            text = {
+              Text(
+                text = group.name,
+                fontWeight = if (i == myViewModel.groupIndex) FontWeight.Bold else FontWeight.Normal
+              )},
+            onClick = {
+              myViewModel.groupIndex = i
+              myViewModel.getGroupMembers(context, myViewModel.groupList[i].id!!) { result ->
+                myViewModel.friendsList = result
+              }
+              groupsExpanded = false
+            },
+          )
+        }
+      }
+    }
+
+    // Status dropdown
+    Box(
+      modifier = Modifier
+        .align(Alignment.BottomEnd)
+    ) {
+      Box(
+        modifier = Modifier
+          .padding(6.dp)
+          .border(
+            width = 1.dp, // Set the border width
+            color = Colors.primary, // Choose your border color
+            shape = RoundedCornerShape(24.dp) // Match the button's corner shape
+          )
+      ) {
+        Button(
+          colors = ButtonDefaults.buttonColors(
+            containerColor = Color.White,
+            contentColor = Color.Black,
+          ),
+          shape = RoundedCornerShape(24.dp),
+          onClick = { statusExpanded = !statusExpanded },
+          modifier = Modifier
+            .padding(0.dp) // No padding inside the Box
+        ) {
+          Text(
+            text = "${myViewModel.status.emoji} ${myViewModel.status.description}",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Normal,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+          )
+        }
+      }
+
+      // Dropdown menu items
+      DropdownMenu(
+        expanded = statusExpanded,
+        onDismissRequest = { statusExpanded = false },
+        modifier = Modifier
+          .width(200.dp)
+          .heightIn(max = 500.dp) // Set max height of the dropdown
+          .background(Color.White)
+          .padding(8.dp)
+          .background(Color.White, shape = RoundedCornerShape(10.dp)),
+        offset = DpOffset(x = 0.dp, y = 0.dp),
+        properties = PopupProperties(focusable = true),
+      ) {
+        myViewModel.statusList.forEach { activity ->
+          if (activity.description != "Idle") {
+            DropdownMenuItem(
+              text = { Text(text = "${activity.emoji} ${activity.description}") },
+              onClick = {
+                myViewModel.updateStatus(activity)
+                statusExpanded = false
+              })
+          }
+        }
       }
     }
 
