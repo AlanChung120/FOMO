@@ -240,6 +240,7 @@ class FriendsScreen(private val myViewModel: MyViewModel) : Screen {
               myViewModel.groupIndex = -1
               expanded = false
               friendsList.value = myViewModel.friendsList
+              myViewModel.fetchPlaces() // reset places
             }
           )
           // Group Requests
@@ -302,6 +303,7 @@ class FriendsScreen(private val myViewModel: MyViewModel) : Screen {
                 myViewModel.getGroupMembers(context, myViewModel.groupList[i].id!!) { result ->
                   friendsList.value = result
                 }
+                myViewModel.fetchPlaces() // fetch new group places
                 expanded = false
               }
             )
@@ -736,8 +738,9 @@ class FriendsScreen(private val myViewModel: MyViewModel) : Screen {
                         friendsList.value = members
                         myViewModel.groupIndex = myViewModel.groupList.indexOfFirst { it.id == result }
                       }
+                      myViewModel.fetchPlaces() // fetch new group places
                     } else {
-                      Toast.makeText(context, "Error: Something went wrong", Toast.LENGTH_SHORT)
+                      Toast.makeText(context, "Error: Input too long (above 30 characters)", Toast.LENGTH_SHORT)
                         .show()
                     }
                   }
@@ -820,6 +823,7 @@ class FriendsScreen(private val myViewModel: MyViewModel) : Screen {
                           friendsList.value = members
                           myViewModel.groupIndex = myViewModel.groupList.indexOfFirst { it.id == result }
                         }
+                        myViewModel.fetchPlaces() // fetch new group places
                       } else {
                         Toast.makeText(context, "Error: Something went wrong", Toast.LENGTH_SHORT)
                           .show()

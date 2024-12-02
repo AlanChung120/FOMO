@@ -561,11 +561,15 @@ class MyViewModel : ViewModel() {
     fun fetchPlaces() {
         viewModelScope.launch {
             try {
-                places = supabase.from("places").select() {
-                    filter {
-                        eq("owner_id", uid)
-                    }
-                }.decodeList<Place>()
+                if (groupIndex == -1) {
+                    places = emptyList<Place>()
+                } else {
+                    places = supabase.from("places").select() {
+                        filter {
+                            eq("group_id", groupList[groupIndex].id!!.toLong())
+                        }
+                    }.decodeList<Place>()
+                }
                 Log.d("Supabase fetchPlaces()", "Places fetched")
             } catch (e: Exception) {
                 Log.e("Supabase fetchPlaces()", "Error: ${e.message}")
@@ -573,29 +577,39 @@ class MyViewModel : ViewModel() {
         }
     }
 
-    fun setPlace(name:String, coords: LatLng?, radius: Double?) {
+    // create place on current location
+    fun createPlace(name:String, onResult: (Boolean) -> Unit) {
 
         viewModelScope.launch {
             try {
-                val newPlace = Place(name = name, latitude = coords?.latitude ?: userLatitude,
-                    longitude = coords?.longitude ?: userLongitude,  radius = radius ?: 0.001, owner_id = uid)
+                val newPlace = Place(name = name, latitude = userLatitude,
+                    longitude = userLongitude,  radius = 0.001, groupId = groupList[groupIndex].id!!.toLong())
                 supabase.from("places").insert(newPlace)
+                onResult(true)
             } catch (e: Exception) {
+                onResult(false)
                 Log.e("Supabase setPlace()", "Error: ${e.message}")
             }
         }
     }
 
-    // Checks if the current user location is in the given place
-    fun isInPlace(place: Place): Boolean {
-        return ((place.latitude - place.radius < userLatitude &&
-                userLatitude < place.latitude + place.radius) &&
-                (place.longitude - place.radius < userLongitude &&
-                    userLongitude < place.longitude + place.radius))
-
+    // Checks if the current user location is in a place in places
+    fun getUserPlace(loc: LatLng, me: Boolean): Place? {
+        for (place in places) {
+            if (((place.latitude - place.radius < loc.latitude &&
+                        loc.latitude < place.latitude + place.radius) &&
+                        (place.longitude - place.radius < loc.longitude &&
+                                loc.longitude < place.longitude + place.radius))) {
+                if (me) {
+                    predictStatus(place.name)
+                }
+                return place
+            }
+        }
+        return null
     }
 
-    fun removePlace(id: Long) {
+    fun removePlace(id: Long, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             try {
                 supabase.from("places").delete() {
@@ -603,7 +617,9 @@ class MyViewModel : ViewModel() {
                         eq("id", id)
                     }
                 }
+                onResult(true)
             } catch (e: Exception) {
+                onResult(false)
                 Log.e("Supabase removePlace()", "Error: ${e.message}")
             }
         }
@@ -623,7 +639,9 @@ class MyViewModel : ViewModel() {
         } else if (upperPlaceName == "RESTAURANT") {
             predictedStatus = "Eating"
         }
-        updateStatus(statusList.filter {it.description == predictedStatus}[0])
+        if (predictedStatus != "") {
+            updateStatus(statusList.filter {it.description == predictedStatus}[0])
+        }
         return predictedStatus
     }
 
@@ -778,7 +796,6 @@ class MyViewModel : ViewModel() {
 
                 fetchRoute()
                 fetchFriends(context)
-                fetchPlaces()
                 fetchGroups(context)
 
                 Log.d("SupabaseConnection", "Friends fetched: $friendsList")
