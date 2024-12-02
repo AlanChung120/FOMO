@@ -1,6 +1,8 @@
 package com.example.fomo
 
 import android.Manifest
+import android.annotation.SuppressLint
+import androidx.compose.ui.window.Dialog
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
@@ -13,6 +15,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,7 +23,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.People
@@ -28,18 +34,32 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalMinimumInteractiveComponentEnforcement
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
@@ -180,6 +200,8 @@ class MainActivity : ComponentActivity() {
             myViewModel.fetchFriends(context)
             myViewModel.fetchPlaces()
             myViewModel.fetchGroups(context)
+            myViewModel.updateGame()
+            myViewModel.fetchGames(context)
             LocationHelper.getPreciseLocation(this@MainActivity, myViewModel)
             delay(5000)
             Log.d("updateData", "data has been updated")
@@ -221,6 +243,183 @@ fun NavigatorFun(myViewModel: MyViewModel) {
   }
 }
 
+@Composable
+fun GameModal(myViewModel: MyViewModel){
+  val isOpen by myViewModel.isGameModalVisible.collectAsState()
+  val coroutineScope = rememberCoroutineScope()
+
+  if (isOpen) {
+    Dialog(
+      onDismissRequest = {
+        coroutineScope.launch {
+          myViewModel.declineGameRequest()
+        }
+      }
+    ){
+      Box(
+        modifier = Modifier
+          .clip(RoundedCornerShape(16.dp))
+          .background(Color.White)
+          .padding(16.dp)
+      ) {
+        Column(
+          verticalArrangement = Arrangement.SpaceBetween,
+          horizontalAlignment = Alignment.CenterHorizontally,
+          modifier = Modifier.fillMaxWidth()
+        ) {
+          Text(
+            text = "Game request",
+            fontSize = 18.sp,
+            modifier = Modifier.padding(bottom = 16.dp)
+          )
+
+          // Buttons Row
+          Row(
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            modifier = Modifier.fillMaxWidth()
+          ) {
+
+            Button(
+              onClick = {
+                coroutineScope.launch {
+                  myViewModel.declineGameRequest()
+                }
+              },
+              colors = ButtonDefaults.buttonColors(
+                containerColor = Color.Red
+              )
+            ) {
+              Text(text = "Decline")
+            }
+            Button(
+              onClick = {
+                coroutineScope.launch {
+                  myViewModel.acceptGameRequest()
+                }
+              },
+              colors = ButtonDefaults.buttonColors(
+                containerColor = Colors.primary
+              )
+            ) {
+              Text(text = "Accept")
+            }
+          }
+        }
+      }
+    }
+  }
+}
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WaitingModal(myViewModel: MyViewModel){
+  val isOpen by myViewModel.isWaitingModalVisible.collectAsState()
+  val gameDuration by myViewModel.gameDuration.collectAsState()
+  val creator by myViewModel.isGameCreator.collectAsState()
+  val coroutineScope = rememberCoroutineScope()
+  var menuExpanded by remember { mutableStateOf(false) }
+
+  if (isOpen) {
+    Dialog(
+      onDismissRequest = {
+        coroutineScope.launch {
+          myViewModel.toggleWaitingModal(false)
+        }
+      }
+    ){
+      Box(
+        modifier = Modifier
+          .clip(RoundedCornerShape(16.dp))
+          .background(Color.White)
+          .padding(16.dp)
+      ) {
+        Column(
+          verticalArrangement = Arrangement.SpaceBetween,
+          horizontalAlignment = Alignment.CenterHorizontally,
+          modifier = Modifier.fillMaxWidth()
+        ) {
+          Text(
+            text = "Waiting for other players...",
+            fontSize = 18.sp,
+            modifier = Modifier.padding(bottom = 16.dp)
+          )
+          if (creator) {
+            ExposedDropdownMenuBox(
+              expanded = menuExpanded,
+              onExpandedChange = {
+                menuExpanded = !menuExpanded
+              },
+              modifier = Modifier
+//              .align(Alignment.TopCenter)
+                .padding(16.dp)
+            ) {
+              OutlinedTextField(
+                value = "$gameDuration minutes",
+                onValueChange = {},
+                readOnly = true,
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuExpanded) },
+                colors = TextFieldDefaults.colors(
+                  focusedIndicatorColor = Color.Black,
+                  unfocusedContainerColor = Color.White,
+                  focusedContainerColor = Color.White,
+                ),
+                shape = RoundedCornerShape(8.dp),
+                textStyle = TextStyle(
+                  fontSize = 14.sp,
+                ),
+                modifier = Modifier
+                  .height(48.dp)
+                  .width(250.dp)
+                  .menuAnchor()
+              )
+              ExposedDropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false },
+                modifier = Modifier.background(Color.White)
+              ) {
+
+                myViewModel.gameDurationArr.forEachIndexed { _, duration ->
+                  DropdownMenuItem(
+                    text = {
+                      Text(
+                        text = "$duration minutes",
+                        fontWeight = FontWeight.Normal
+                      )},
+                    onClick = {
+                      coroutineScope.launch{
+                        myViewModel.setGameDuration(duration)
+                        myViewModel.updateGameDuration()
+                        menuExpanded = false
+                      }
+                    },
+                  )
+                }
+              }
+            }
+          }
+
+
+          Row(
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            modifier = Modifier.fillMaxWidth()
+          ) {
+            Button(
+              onClick = {
+                coroutineScope.launch {
+                  myViewModel.declineGameRequest()
+                }
+              },
+              colors = ButtonDefaults.buttonColors(
+                containerColor = Color.Red
+              )
+            ) {
+              Text(text = "Cancel Game")
+            }
+          }
+        }
+      }
+    }
+  }
+}
 
 @Composable
 fun Content(myViewModel: MyViewModel) {
@@ -237,6 +436,9 @@ fun Content(myViewModel: MyViewModel) {
         horizontalAlignment = Alignment.CenterHorizontally) {
         CurrentScreen() // Show the current screen
       }
+
+      GameModal(myViewModel)
+      WaitingModal(myViewModel)
     }
   } else {
     CurrentScreen() // Show the current screen

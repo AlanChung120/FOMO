@@ -63,8 +63,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.PopupProperties
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.core.screen.Screen
 import com.example.fomo.BuildConfig
+import com.example.fomo.LoadingScreen
 import com.example.fomo.consts.Colors
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.maps.android.compose.GoogleMap
@@ -77,16 +80,30 @@ import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberMarkerState
 import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.MarkerComposable
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.concurrent.TimeUnit
+
 
 class MapScreen(private val myViewModel: MyViewModel, private val friendLocation: LatLng? = null) : Screen {
   @Composable
   override fun Content() {
-    Column(
-      modifier = Modifier.fillMaxSize()
-    ) {
-      Map(myViewModel, friendLocation)
+    val sessionRestored by myViewModel.sessionRestored.collectAsState()
+    val isDataLoaded by myViewModel.isDataLoaded.collectAsState()
+
+    if (sessionRestored && isDataLoaded) {
+      Column(
+        modifier = Modifier.fillMaxSize()
+      ) {
+        Map(myViewModel, friendLocation)
+      }
+    } else {
+      LoadingScreen()
     }
   }
 }
@@ -120,6 +137,8 @@ fun CustomMapMarker(
 @Composable
 fun Map(myViewModel: MyViewModel, friendLocation: LatLng?) {
   val context = LocalContext.current
+  val groupIndex by myViewModel.groupIndex.collectAsState()
+  val startGame by myViewModel.startGame.collectAsState()
   var isMapLoaded by remember { mutableStateOf(false) }
   val cameraPositionState = rememberCameraPositionState {
     position = CameraPosition.fromLatLngZoom(myViewModel.center, 15f)
@@ -198,6 +217,8 @@ fun Map(myViewModel: MyViewModel, friendLocation: LatLng?) {
     ) {
       val isDataLoaded by myViewModel.isDataLoaded.collectAsState()
       val isSessionRestored by myViewModel.sessionRestored.collectAsState()
+      val groupIndex by myViewModel.groupIndex.collectAsState()
+
       if (isMapLoaded && isDataLoaded && isSessionRestored) {
         val icon = myViewModel.bitmapDescriptor
         val userPlace = myViewModel.getUserPlace(LatLng(myViewModel.userLatitude, myViewModel.userLongitude) , true)
@@ -218,7 +239,7 @@ fun Map(myViewModel: MyViewModel, friendLocation: LatLng?) {
         Log.d("mapdebug", "marker loaded at ${myViewModel.userLatitude}")
 
         // display friends
-        val friendsList = if (myViewModel.groupIndex == -1) myViewModel.friendsList else myViewModel.groupMemberList
+        val friendsList = if (groupIndex == -1) myViewModel.friendsList else myViewModel.groupMemberList
         for(friend in friendsList) {
           val friendLocation = LatLng(friend.latitude, friend.longitude)
           val friendStatus = myViewModel.statusList.filter {it.id == friend.status_id}[0]
@@ -303,7 +324,7 @@ fun Map(myViewModel: MyViewModel, friendLocation: LatLng?) {
         .padding(16.dp)
     ) {
       OutlinedTextField(
-        value = if (myViewModel.groupIndex == -1) "All Friends" else myViewModel.groupList[myViewModel.groupIndex].name,
+        value = if (groupIndex == -1) "All Friends" else myViewModel.groupList[groupIndex].name,
         onValueChange = {},
         readOnly = true,
         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = groupsExpanded) },
@@ -332,10 +353,10 @@ fun Map(myViewModel: MyViewModel, friendLocation: LatLng?) {
           text = {
             Text(
               text = "All Friends",
-              fontWeight = if (myViewModel.groupIndex == -1) FontWeight.Bold else FontWeight.Normal
+              fontWeight = if (groupIndex == -1) FontWeight.Bold else FontWeight.Normal
             )},
           onClick = {
-            myViewModel.groupIndex = -1
+            myViewModel.selectGroup(-1)
             groupsExpanded = false
             myViewModel.fetchPlaces() // reset places
           },
@@ -346,10 +367,10 @@ fun Map(myViewModel: MyViewModel, friendLocation: LatLng?) {
             text = {
               Text(
                 text = group.name,
-                fontWeight = if (i == myViewModel.groupIndex) FontWeight.Bold else FontWeight.Normal
+                fontWeight = if (i == groupIndex) FontWeight.Bold else FontWeight.Normal
               )},
             onClick = {
-              myViewModel.groupIndex = i
+              myViewModel.selectGroup(i)
               myViewModel.getGroupMembers(context, myViewModel.groupList[i].id!!) { result ->
                 myViewModel.friendsList = result
               }
@@ -357,6 +378,84 @@ fun Map(myViewModel: MyViewModel, friendLocation: LatLng?) {
               groupsExpanded = false
             },
           )
+        }
+      }
+    }
+    val gameEndTime by myViewModel.gameEndTime.collectAsState()
+    val hunterName by myViewModel.hunterName.collectAsState()
+    if (startGame && gameEndTime != "") {
+      var timeLeft by remember { mutableStateOf("") } // Holds the ticking time string
+      val formatter = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+
+      LaunchedEffect(gameEndTime) {
+        val endDate = formatter.parse(gameEndTime) // Parse the stored endTime
+        if (endDate != null) {
+          while (true) {
+            val currentTime = Date()
+            val diff = endDate.time - currentTime.time
+
+            if (diff > 0) {
+              val minutes = TimeUnit.MILLISECONDS.toMinutes(diff)
+              val seconds = TimeUnit.MILLISECONDS.toSeconds(diff) % 60
+              timeLeft = String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
+            } else {
+              timeLeft = "00:00" // Timer has ended
+              break
+            }
+            delay(1000) // Wait 1 second before updating
+          }
+        } else {
+          timeLeft = "Invalid Time" // Error case
+        }
+      }
+
+      Box(
+        modifier = Modifier
+          .align(Alignment.TopEnd)
+          .padding(top = 75.dp, end = 6.dp) // Add padding around the card
+          .border(
+            width = 1.dp, // Set border width
+            color = Colors.primary, // Border color
+            shape = RoundedCornerShape(24.dp) // Corner radius
+          )
+          .background(Color.White, shape = RoundedCornerShape(24.dp)) // Background color and shape
+          .padding(12.dp) // Internal padding
+      ) {
+        Column(
+          verticalArrangement = Arrangement.spacedBy(8.dp), // Spacing between items
+          horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+          // Time Left Text
+          Text(
+            text = "Time Left: $timeLeft",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.Black // Text color
+          )
+
+          // Hunter Name Text
+          Text(
+            text = "Hunter: $hunterName",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Normal,
+            color = Color.Black // Text color
+          )
+
+          // Button
+          Button(
+            onClick = {
+              Log.d("HunterButton", "hunted!")
+              myViewModel.viewModelScope.launch{
+                myViewModel.userTagged()
+              }
+            },
+            colors = ButtonDefaults.buttonColors(
+              containerColor = Colors.primary, // Button background color
+              contentColor = Color.White // Button text color
+            )
+          ) {
+            Text(text = "I've been tagged!")
+          }
         }
       }
     }
@@ -421,7 +520,7 @@ fun Map(myViewModel: MyViewModel, friendLocation: LatLng?) {
     }
 
     // Places dropdown
-    if (myViewModel.groupIndex != -1) {
+    if (groupIndex != -1) {
       Box(
         modifier = Modifier
           .align(Alignment.BottomStart)
@@ -513,7 +612,7 @@ fun Map(myViewModel: MyViewModel, friendLocation: LatLng?) {
     }
 
     // Add place button
-    if (myViewModel.groupIndex != -1) {
+    if (groupIndex != -1) {
       Box(
         modifier = Modifier
           .align(Alignment.BottomStart)
