@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.House
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
@@ -56,6 +57,7 @@ import com.example.fomo.ui.theme.FOMOTheme
 import com.example.fomo.util.LocationHelper
 import com.example.fomo.views.FriendsScreen
 import com.example.fomo.views.MapScreen
+import com.example.fomo.views.PlaceScreen
 import com.example.fomo.views.ProfileScreen
 import com.example.fomo.views.SettingsScreen
 import com.example.fomo.views.SignInScreen
@@ -254,6 +256,7 @@ fun Navbar(viewModel: MyViewModel) {
   val navigator = LocalNavigator.current
   val items: Array<Pair<() -> Unit, @Composable () -> Unit>> = arrayOf(
     Pair({ navigator?.push(MapScreen(viewModel)) }, {Icon(imageVector = Icons.Default.LocationOn, contentDescription = "Map Icon")}),
+    Pair({ navigator?.push(PlaceScreen(viewModel)) }, {Icon(imageVector = Icons.Default.House, contentDescription = "Places Icon")}),
     Pair({ navigator?.push(FriendsScreen(viewModel)) }, {Icon(imageVector = Icons.Default.People, contentDescription = "Friends Icon")}),
     Pair({ navigator?.push(ProfileScreen(viewModel)) }, {Icon(imageVector = Icons.Default.Person, contentDescription = "Profile Icon")}),
     Pair({ navigator?.push(SettingsScreen(viewModel)) }, {Icon(imageVector = Icons.Default.Settings, contentDescription = "Settings Icon")}),

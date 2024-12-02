@@ -54,6 +54,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.remember
 import androidx.core.graphics.drawable.toBitmap
 import coil.imageLoader
 import coil.request.ImageRequest
@@ -225,6 +226,8 @@ class MyViewModel : ViewModel() {
     var mode by mutableStateOf("walking")
     var places by mutableStateOf<List<Place>>(emptyList())
     var groupIndex by mutableIntStateOf(-1)
+    var placeName by mutableStateOf("")
+    var radius by mutableStateOf<Double>(300.0)
 
     val routeMutex = Mutex()
 
@@ -576,13 +579,15 @@ class MyViewModel : ViewModel() {
     }
 
     // create place on current location
-    fun createPlace(name:String, onResult: (Boolean) -> Unit) {
+    fun createPlace(position: LatLng, radius: Double, name: String, onResult: (Boolean) -> Unit) {
 
         viewModelScope.launch {
             try {
-                val newPlace = Place(name = name, latitude = userLatitude,
-                    longitude = userLongitude,  radius = 0.001, groupId = groupList[groupIndex].id!!.toLong())
+                println("urmom ${radius}")
+                val newPlace = Place(name = name, latitude = position.latitude,
+                    longitude = position.longitude, radius = radius, groupId = groupList[groupIndex].id!!.toLong())
                 supabase.from("places").insert(newPlace)
+                fetchPlaces()
                 onResult(true)
             } catch (e: Exception) {
                 onResult(false)
