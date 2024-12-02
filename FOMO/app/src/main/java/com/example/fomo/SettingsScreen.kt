@@ -100,7 +100,7 @@ class SettingsScreen(private val myViewModel: MyViewModel) : Screen {
           checked = isNotificationSharingEnabled,
           onCheckedChange = { isEnabled ->
             isNotificationSharingEnabled = isEnabled
-
+            openSetting(context)
           }
         )
       }
