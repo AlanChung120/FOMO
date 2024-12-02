@@ -609,6 +609,24 @@ class MyViewModel : ViewModel() {
         }
     }
 
+    fun predictStatus(placeName: String): String {
+        val upperPlaceName = placeName.uppercase()
+        var predictedStatus = ""
+        if (upperPlaceName == "HOME") {
+            predictedStatus = "Chilling"
+        } else if (upperPlaceName == "GYM") {
+            predictedStatus = "Exercising"
+        } else if (upperPlaceName == "SCHOOL") {
+            predictedStatus = "Studying"
+        } else if (upperPlaceName == "WORK") {
+            predictedStatus = "Working"
+        } else if (upperPlaceName == "RESTAURANT") {
+            predictedStatus = "Eating"
+        }
+        updateStatus(statusList.filter {it.description == predictedStatus}[0])
+        return predictedStatus
+    }
+
     fun fetchFriends(context: Context) {
         viewModelScope.launch {
             try {

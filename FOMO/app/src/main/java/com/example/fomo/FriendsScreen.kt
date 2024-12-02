@@ -269,10 +269,34 @@ class FriendsScreen(private val myViewModel: MyViewModel) : Screen {
           myViewModel.groupList.forEachIndexed { i, group ->
             DropdownMenuItem(
               text = {
-                Text(
-                  text = group.name,
-                  fontWeight = if (i == myViewModel.groupIndex) FontWeight.Bold else FontWeight.Normal
-                )},
+                Row {
+                  Text(
+                    text = group.name,
+                    fontWeight = FontWeight.SemiBold,
+                  )
+                  Spacer(Modifier.weight(1f))
+                  Box(
+                    modifier = Modifier
+                      .size(24.dp)
+                      .clickable {
+                        myViewModel.groupIndex = -1
+                        myViewModel.removeGroup(context, group.id!!) { success ->
+                        if (success) {
+                          Toast.makeText(context, "Group Removed", Toast.LENGTH_SHORT).show()
+                        } else {
+                          Toast.makeText(context, "Error: Group Remove Failed", Toast.LENGTH_SHORT).show()
+                        }
+                        }
+                        expanded = false
+                      }
+                  ) {
+                    Icon(
+                      imageVector = Icons.Default.Close,
+                      contentDescription = "Group Remove",
+                      tint = Color.Red
+                    )
+                  }
+                }},
               onClick = {
                 myViewModel.groupIndex = i
                 myViewModel.getGroupMembers(context, myViewModel.groupList[i].id!!) { result ->

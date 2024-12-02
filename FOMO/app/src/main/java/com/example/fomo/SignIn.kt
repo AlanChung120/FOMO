@@ -41,6 +41,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.fomo.const.Colors
@@ -123,6 +124,7 @@ class SignIn(private val myViewModel: MyViewModel) : Screen {
               keyboardType = KeyboardType.Text,
               imeAction = ImeAction.Done
             ),
+            visualTransformation = PasswordVisualTransformation(),
             colors = TextFieldDefaults.colors(
               unfocusedContainerColor = Color.Transparent,
               focusedContainerColor = Color.Transparent,
