@@ -287,6 +287,9 @@ class MyViewModel(
     var places by mutableStateOf<List<Place>>(emptyList())
     var game by mutableStateOf(Game(id=-1L, groupId = -1L, running = false))
     var gameDurationArr = arrayOf(1, 2, 5, 10)
+    var placeName by mutableStateOf("")
+    var radius by mutableStateOf<Double>(100.0)
+    var addingPlace by mutableStateOf(false)
 
     val routeMutex = Mutex()
 
@@ -638,12 +641,11 @@ class MyViewModel(
     }
 
     // create place on current location
-    fun createPlace(name:String, onResult: (Boolean) -> Unit) {
-
+    fun createPlace(position: LatLng, radius: Double, name: String, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             try {
-                val newPlace = Place(name = name, latitude = userLatitude,
-                    longitude = userLongitude,  radius = 0.001, groupId = groupList[groupIndex.value].id!!.toLong())
+                val newPlace = Place(name = name, latitude = position.latitude, longitude = position.longitude,
+                    radius = radius, groupId = groupList[groupIndex.value].id!!.toLong())
                 supabase.from("places").insert(newPlace)
                 onResult(true)
             } catch (e: Exception) {
@@ -653,13 +655,32 @@ class MyViewModel(
         }
     }
 
+    // calculates distance for latlng taking into account the Earth's curvature
+    private fun haversineDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+        val R = 6371e3 // Earth's radius in meters
+        val lat1Rad = Math.toRadians(lat1)
+        val lat2Rad = Math.toRadians(lat2)
+        val deltaLat = Math.toRadians(lat2 - lat1)
+        val deltaLon = Math.toRadians(lon2 - lon1)
+
+        val a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+                Math.cos(lat1Rad) * Math.cos(lat2Rad) *
+                Math.sin(deltaLon / 2) * Math.sin(deltaLon / 2)
+        val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+
+        return R * c // Distance in meters
+    }
+
     // Checks if the current user location is in a place in places
     fun getUserPlace(loc: LatLng, me: Boolean): Place? {
         for (place in places) {
-            if (((place.latitude - place.radius < loc.latitude &&
-                        loc.latitude < place.latitude + place.radius) &&
-                        (place.longitude - place.radius < loc.longitude &&
-                                loc.longitude < place.longitude + place.radius))) {
+            val distance = haversineDistance(
+                loc.latitude,
+                loc.longitude,
+                place.latitude,
+                place.longitude
+            )
+            if (distance <= place.radius) {
                 if (me) {
                     predictStatus(place.name)
                 }

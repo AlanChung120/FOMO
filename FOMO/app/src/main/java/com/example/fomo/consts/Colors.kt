@@ -7,4 +7,5 @@ object Colors {
   val background = Color(0xFFe0e8dd)
   val translucent = Color(0x40a4eb7f)
   val dark = Color(0xFF9fdb7d)
+  val lightgray = Color(0xFFF0F0F0)
 }

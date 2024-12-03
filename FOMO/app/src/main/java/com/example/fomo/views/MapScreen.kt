@@ -75,6 +75,7 @@ import com.google.maps.android.compose.rememberCameraPositionState
 import com.example.fomo.viewmodel.MyViewModel
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.LatLng
+import com.google.maps.android.compose.Circle
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberMarkerState
@@ -108,31 +109,6 @@ class MapScreen(private val myViewModel: MyViewModel, private val friendLocation
   }
 }
 
-@Composable
-fun CustomMapMarker(
-  name: String,
-  location: LatLng,
-  color: Color
-) {
-  val markerState = rememberMarkerState(position = location)
-  MarkerComposable(
-    state = markerState,
-    title = name,
-    anchor = Offset(0.5f, 1f),
-  ) {
-    Icon(
-      imageVector = Icons.Default.Circle,
-      contentDescription = name, tint = color,
-      modifier = Modifier.scale(1.2f)
-    )
-    Icon(
-      imageVector = Icons.Default.Flag,
-      contentDescription = name, tint = Color.White,
-      modifier = Modifier.scale(0.7f)
-    )
-  }
-}
-
 @OptIn(InternalSerializationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun Map(myViewModel: MyViewModel, friendLocation: LatLng?) {
@@ -146,15 +122,11 @@ fun Map(myViewModel: MyViewModel, friendLocation: LatLng?) {
   val markerState = rememberMarkerState(
     key = "Selected Location",
   )
-  val scope = rememberCoroutineScope()
 
   val userMarkerState = rememberMarkerState(key = "User Position", position = LatLng(myViewModel.userLatitude, myViewModel.userLongitude))
 
   var groupsExpanded by remember { mutableStateOf(false) }
   var statusExpanded by remember { mutableStateOf(false) }
-  var placesExpanded by remember { mutableStateOf(false) }
-  var showAddPlace by remember {mutableStateOf(false)}
-  var placeName by remember { mutableStateOf("") }
 
   LaunchedEffect(key1 = true){
     myViewModel.loadImage(context, myViewModel.getImgUrl(myViewModel.uid))
@@ -289,8 +261,14 @@ fun Map(myViewModel: MyViewModel, friendLocation: LatLng?) {
         // display places
         for(place in myViewModel.places) {
           val placeLocation = LatLng(place.latitude, place.longitude)
-          CustomMapMarker(name = place.name, location = placeLocation, color = Colors.dark)
-
+          PlaceMarker(name = place.name, location = placeLocation, color = Colors.dark)
+          Circle(
+            center = LatLng(place.latitude, place.longitude),
+            radius = place.radius, // in meters
+            fillColor = Colors.translucent,
+            strokeColor = Colors.translucent,
+            strokeWidth = 2f // in pixels
+          )
         }
 
         // display on my way route
@@ -514,187 +492,6 @@ fun Map(myViewModel: MyViewModel, friendLocation: LatLng?) {
                 myViewModel.updateStatus(activity)
                 statusExpanded = false
               })
-          }
-        }
-      }
-    }
-
-    // Places dropdown
-    if (groupIndex != -1) {
-      Box(
-        modifier = Modifier
-          .align(Alignment.BottomStart)
-      ) {
-        Box(
-          modifier = Modifier
-            .padding(6.dp)
-            .border(
-              width = 1.dp, // Set the border width
-              color = Colors.primary, // Choose your border color
-              shape = RoundedCornerShape(24.dp) // Match the button's corner shape
-            )
-        ) {
-          Button(
-            colors = ButtonDefaults.buttonColors(
-              containerColor = Color.White,
-              contentColor = Color.Black,
-            ),
-            shape = RoundedCornerShape(24.dp),
-            onClick = { placesExpanded = !placesExpanded },
-            modifier = Modifier
-              .padding(0.dp) // No padding inside the Box
-          ) {
-            Text(
-              text = "Places",
-              fontSize = 14.sp,
-              fontWeight = FontWeight.Normal,
-              modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
-            )
-          }
-        }
-    }
-
-      // Dropdown menu items
-      DropdownMenu(
-        expanded = placesExpanded && myViewModel.places.isNotEmpty(),
-        onDismissRequest = { placesExpanded = false },
-        modifier = Modifier
-          .width(200.dp)
-          .heightIn(max = 500.dp) // Set max height of the dropdown
-          .background(Color.White)
-          .padding(8.dp)
-          .background(Color.White, shape = RoundedCornerShape(10.dp)),
-        offset = DpOffset(x = 0.dp, y = 0.dp),
-        properties = PopupProperties(focusable = true),
-      ) {
-        myViewModel.places.forEach { place ->
-          DropdownMenuItem(
-            text = {
-              Row {
-                Text(
-                  text = place.name,
-                  fontWeight = FontWeight.SemiBold,
-                )
-                Spacer(Modifier.weight(1f))
-                Box(
-                  modifier = Modifier
-                    .size(24.dp)
-                    .clickable {
-                      myViewModel.removePlace(place.id!!) { success ->
-                        if (success) {
-                          Toast.makeText(context, "Place Removed", Toast.LENGTH_SHORT).show()
-                        } else {
-                          Toast.makeText(context, "Error: Place Remove Failed", Toast.LENGTH_SHORT).show()
-                        }
-                      }
-                      placesExpanded = false
-                    }
-                ) {
-                  Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Place Remove",
-                    tint = Color.Red
-                  )
-                }
-              }},
-            onClick = {
-              scope.launch {
-                cameraPositionState.animate(
-                  CameraUpdateFactory.newLatLngZoom(LatLng(place.latitude, place.longitude), 15f),
-                  1000 // Optional animation duration in milliseconds
-                )
-                placesExpanded = false
-              }
-            })
-        }
-      }
-
-    }
-
-    // Add place button
-    if (groupIndex != -1) {
-      Box(
-        modifier = Modifier
-          .align(Alignment.BottomStart)
-          .padding(bottom = 60.dp)
-      ) {
-        Box(
-          modifier = Modifier
-            .padding(1.dp)
-            .border(
-              width = 1.dp, // Set the border width
-              color = Colors.primary, // Choose your border color
-              shape = RoundedCornerShape(24.dp) // Match the button's corner shape
-            )
-        ) {
-          Button(
-            colors = ButtonDefaults.buttonColors(
-              containerColor = Color.White,
-              contentColor = Color.Black,
-            ),
-            shape = RoundedCornerShape(24.dp),
-            onClick = { showAddPlace = true },
-            modifier = Modifier
-              .padding(0.dp) // No padding inside the Box
-          ) {
-            Text(
-              text = "+",
-              fontSize = 14.sp,
-              fontWeight = FontWeight.Normal,
-            )
-          }
-        }
-      }
-    }
-
-
-    if (showAddPlace) {
-      Dialog(onDismissRequest = { showAddPlace = false }) {
-        Surface(
-          shape = MaterialTheme.shapes.medium,
-          color = MaterialTheme.colorScheme.background,
-          modifier = Modifier.padding(16.dp)
-        ) {
-          Column(
-            modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-          ) {
-            Text("Enter New Place Name")
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // TextField to input new place name
-            OutlinedTextField(
-              value = placeName,
-              onValueChange = { placeName = it },
-              label = { Text("New Place Name") },
-              modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-              horizontalArrangement = Arrangement.End,
-              modifier = Modifier.fillMaxWidth()
-            ) {
-              TextButton(onClick = { showAddPlace = false }) {
-                Text("Cancel")
-              }
-              TextButton(onClick = {  // save button
-                myViewModel.createPlace(placeName) { success ->
-                  if (success) {
-                    Toast.makeText(context, "Place Created", Toast.LENGTH_SHORT).show()
-                  } else {
-                    Toast.makeText(context, "Error: Input too long (above 20 characters)",
-                      Toast.LENGTH_SHORT).show()
-                  }
-                }
-                showAddPlace = false
-                placeName = ""
-              }) {
-                Text("Save")
-              }
-            }
           }
         }
       }

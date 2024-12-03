@@ -330,7 +330,7 @@ class FriendsScreen(private val myViewModel: MyViewModel) : Screen {
             containerColor = Colors.primary
           ),
           modifier = Modifier
-            .height(50.dp)
+            .height(55.dp)
             .padding(horizontal = 7.dp),
           shape = RoundedCornerShape(6.dp)
         ) {
@@ -344,7 +344,7 @@ class FriendsScreen(private val myViewModel: MyViewModel) : Screen {
           containerColor = Colors.primary
         ),
         modifier = Modifier
-          .height(50.dp)
+          .height(55.dp)
           .padding(horizontal = 7.dp),
         shape = RoundedCornerShape(6.dp)
       ) {
@@ -353,7 +353,6 @@ class FriendsScreen(private val myViewModel: MyViewModel) : Screen {
         } else {
           Icon(imageVector = Icons.Default.PersonAddAlt1, contentDescription = "Add Friend to Group")
         }
-
       }
     }
   }
