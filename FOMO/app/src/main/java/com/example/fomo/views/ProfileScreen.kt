@@ -132,28 +132,6 @@ fun ProfileContent(myViewModel: MyViewModel) {
         modifier = Modifier.fillMaxWidth()
       ) {
         Text(
-          text = "Email: ${myViewModel.email}",
-          style = MaterialTheme.typography.bodyMedium,
-          modifier = Modifier.weight(1f) // Push the text to the left
-        )
-
-        TextButton(
-          onClick = {
-            showDialog = true
-            toChange = "Email"
-            newValue = myViewModel.email
-          }
-        ) {
-          Text("Change", color = MaterialTheme.colorScheme.primary)
-        }
-      }
-
-      // Row to display the current name and the "Change" button on the same line
-      Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth()
-      ) {
-        Text(
           text = "Username: ${myViewModel.username}",
           style = MaterialTheme.typography.bodyMedium,
           modifier = Modifier.weight(1f) // Push the text to the left
@@ -170,7 +148,7 @@ fun ProfileContent(myViewModel: MyViewModel) {
         }
       }
 
-      // Row to display the current name and the "Change" button on the same line
+      // Row to display the password and the "Change" button on the same line
       Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth()
@@ -289,16 +267,7 @@ fun ProfileContent(myViewModel: MyViewModel) {
                           Toast.LENGTH_SHORT).show()
                       }
                     }
-                  } else if ( toChange == "Email") {
-                    myViewModel.updateEmail(newValue) { success ->
-                      if (success) {
-                        Toast.makeText(context, "Email Updated!", Toast.LENGTH_SHORT).show()
-                      } else {
-                        Toast.makeText(context, "Error: Input too long (above 200 characters) or email already exists",
-                          Toast.LENGTH_SHORT).show()
-                      }
-                    }
-                  } else if ( toChange == "Username") {
+                  }  else if ( toChange == "Username") {
                     myViewModel.updateUsername(newValue) { success ->
                       if (success) {
                         Toast.makeText(context, "Username Updated!", Toast.LENGTH_SHORT).show()

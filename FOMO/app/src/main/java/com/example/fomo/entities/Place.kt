@@ -10,5 +10,5 @@ data class Place(
   @SerialName("latitude") val latitude: Double,
   @SerialName("longitude") val longitude: Double,
   @SerialName("radius") val radius: Double,
-  @SerialName("group_id") val groupId: Long,
+  @SerialName("group_id") val groupId: Long, // group that place represents
 )

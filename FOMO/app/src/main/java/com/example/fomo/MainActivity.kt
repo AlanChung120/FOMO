@@ -197,6 +197,7 @@ class MainActivity : ComponentActivity() {
       myViewModel.signedIn.collect { isSignedIn ->
         if (isSignedIn) {
           while (isActive) {
+            // live updates
             myViewModel.fetchFriends(context)
             myViewModel.fetchPlaces()
             myViewModel.fetchGroups(context)

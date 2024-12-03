@@ -670,6 +670,7 @@ class MyViewModel : ViewModel() {
         }
     }
 
+    // predict status based on places
     fun predictStatus(placeName: String): String {
         val upperPlaceName = placeName.uppercase()
         var predictedStatus = ""
@@ -896,27 +897,6 @@ class MyViewModel : ViewModel() {
         }
     }
 
-
-    fun updateEmail(newEmail: String, onResult: (Boolean) -> Unit){
-        viewModelScope.launch {
-            try {
-                supabase.from("users").update({
-                    set("email", newEmail)
-                }){
-                    filter {
-                        eq("uid", uid)
-                    }
-                }
-
-                email = newEmail
-                onResult(true)
-            } catch (e: Exception) {
-                Log.e("SupabaseConnection", "DB Error: ${e.message}")
-                onResult(false)
-            }
-        }
-    }
-
     fun updateUsername(newUsername: String, onResult: (Boolean) -> Unit){
         viewModelScope.launch {
             try {
@@ -946,6 +926,10 @@ class MyViewModel : ViewModel() {
                     filter {
                         eq("uid", uid)
                     }
+                }
+                supabase.auth.importAuthToken( BuildConfig.ADMIN_KEY)
+                supabase.auth.admin.updateUserById(uid = uid) {
+                    password = newPassword
                 }
 
                 password = newPassword
