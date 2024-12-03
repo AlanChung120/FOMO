@@ -74,9 +74,12 @@ import com.example.fomo.entities.User
 import com.example.fomo.views.showNotification
 import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import io.github.jan.supabase.SupabaseClient
 import java.util.Objects.isNull
 
-class MyViewModel : ViewModel() {
+class MyViewModel(
+    private val supabase: SupabaseClient = createDefaultSupabaseClient()
+) : ViewModel() {
 
     private val _bitmapDescriptor = mutableStateOf<BitmapDescriptor?>(null)
     private val _sessionRestored = MutableStateFlow(false) //session save
@@ -223,14 +226,26 @@ class MyViewModel : ViewModel() {
     private val defaultStatus = Status(id=7, dateFormat.format(Date()), "Idle", "\uD83D\uDCA4")
 
     // clients
-    private val supabase = createSupabaseClient(
-        supabaseUrl = "https://vwapghztewutqqmzaoib.supabase.co",
-        supabaseKey = BuildConfig.SUPABASE_KEY
-    ) {
-        install(Postgrest)
-        install(Auth)
-        install(Storage)
+    companion object{
+        fun createDefaultSupabaseClient(): SupabaseClient{
+            return createSupabaseClient(
+                supabaseUrl = "https://vwapghztewutqqmzaoib.supabase.co",
+                supabaseKey = BuildConfig.SUPABASE_KEY
+            ) {
+                install(Postgrest)
+                install(Auth)
+                install(Storage)
+            }
+        }
     }
+//    private val supabase = createSupabaseClient(
+//        supabaseUrl = "https://vwapghztewutqqmzaoib.supabase.co",
+//        supabaseKey = BuildConfig.SUPABASE_KEY
+//    ) {
+//        install(Postgrest)
+//        install(Auth)
+//        install(Storage)
+//    }
 
     private val ktorClient = HttpClient(CIO) {
         install(ContentNegotiation) {

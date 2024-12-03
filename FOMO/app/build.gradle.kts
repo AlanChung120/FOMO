@@ -50,6 +50,22 @@ secrets {
 }
 
 dependencies {
+
+  implementation(libs.core.ktx)
+  implementation(libs.androidx.ui.test.junit4.android)
+  testImplementation ("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+  // JUnit for basic testing
+  testImplementation ("junit:junit:4.13.2")
+
+// Kotlin Test Helpers
+  testImplementation ("org.jetbrains.kotlin:kotlin-test-junit:1.9.10")
+
+// Mocking Frameworks
+  testImplementation ("org.mockito:mockito-core:5.5.0")
+  testImplementation ("org.mockito.kotlin:mockito-kotlin:5.0.0")
+  testImplementation ("io.mockk:mockk:1.13.7")
+
+
   //database
   implementation(platform("io.github.jan-tennert.supabase:bom:3.0.1"))
   implementation("io.github.jan-tennert.supabase:postgrest-kt")
